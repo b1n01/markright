@@ -4,7 +4,7 @@ Specification for a markdown-inspired markup language, called markright. This do
 As for markdown, markright aims to provide an easy and fast way to write HTML via a simpler and cleaner syntax.
 
 ## Conventions
-Examples in this document represent whitespace characters by a point character "‧" and linebreaks by a negation character "¬". Markright syntax and HTML syntax are divided by three dashes "---".
+Examples in this document represent whitespace characters by a point symbol "‧" and linebreaks by a leftwards symbol "↩". Markright syntax and HTML syntax are divided by three dashes "---".
 
 ## Elements
 There are three types of elements: block, inline and empty.
@@ -23,17 +23,17 @@ foo
 
 Consecutive lines with the same type of block element are considered a single block. Each line is sometimes called a "fragment". Linebreaks are preserved.
 ```
-foo¬
+foo↩
 bar
 ---
-<p>foo¬
+<p>foo↩
 bar</p>
 ```
 
 One or more empty lines between two blocks of the same type split them into two separate blocks.
 ```
-foo¬
-¬
+foo↩
+↩
 bar
 ---
 <p>foo</p>
@@ -42,7 +42,7 @@ bar
 
 Two consecutive lines with a different types of block elements are considered different blocks.
 ```
-# foo¬
+# foo↩
 bar
 ---
 <h1>foo</h1>
@@ -51,9 +51,9 @@ bar
 
 Initial and final spaces are removed
 ```
-‧‧‧foo‧bar‧‧‧
+‧‧‧foo‧‧‧
 ---
-<p>foo‧bar</p>
+<p>foo</p>
 ```
 
 Multiple spaces are collapsed into one
@@ -65,10 +65,10 @@ foo‧‧‧bar
 
 Spaces before or after linebreaks are removed
 ```
-foo‧‧‧¬
+foo‧‧‧↩
 ‧‧‧bar
 ---
-<p>foo¬
+<p>foo↩
 bar</p>
 ```
 
@@ -80,65 +80,67 @@ bar</p>
 Inline elements are elements defined within block elements. Differently from block elements, which are delimited by linebreaks, an inline element requires an opening and a closing notation. 
 
 ```
-**foo**
+s[foo]
 ---
 <p><strong>foo</strong></p>
 ```
 
 Multiple inline elements can be defined within the same block elements.
 ```
-**foo**__bar__
+s[foo]e[baz]
 ---
-<p><strong>foo</strong><em>bar</em></p>
+<p><strong>foo</strong>‧bar‧<em>baz</em></p>
 ```
 
-Some inline elements can be nested within other inline elements
+Inline elements can be nested within other inline elements
 ```
-**__foo__**
+se[foo]
 ---
 <p><strong><em>foo</em></strong></p>
 ```
 
-Initial and final Whitespaces are removed
+Initial and final whitespaces are removed
 ```
-**‧‧‧foo‧‧‧**
+s[‧‧‧foo‧‧‧]
 ---
 <p><strong>foo</strong></p>
 ```
 
 Multiple spaces are collapsed into one
 ```
-**foo‧‧‧bar**
+s[foo‧‧‧bar]
 ---
 <p><strong>foo‧bar</strong></p>
 ```
 
 An inline element can span across multiple fragments of the same block element.
 ```
-**foo¬
-bar**
+s[foo↩
+bar]
 ---
-<p><strong>foo¬
+<p><strong>foo↩
 bar</strong></p>
 ```
 An inline element cannot span across multiple block elements. The block element definition wins over the inline element definition and the two blocks are split.
 
 ```
-**foo¬
-¬
-bar**
+s[foo↩
+↩
+bar]
 ---
-<p>**foo</p>
-<p>bar**</p>
+<p>s[foo</p>
+<p>bar]</p>
 ```
 
 #### Types of inline elements
 - Strong
-- Italic
-- Strike
+- Emphasis
+- Underline
+- Delete
+- Insert
 
 ## Paragraph
-The paragraph is the "fallback" block element, it doesn't require special characters. Any line that does not match any other block is considered a paragraph. 
+The paragraph is the "fallback" block element, it doesn't require special symbols. Any line that does not match any other block is considered a paragraph. 
 
 ```
 foo
@@ -146,7 +148,75 @@ foo
 <p>foo</p>
 ```
 
-## Proposal
+## Headings
+Headings are block elements identified by the hash # symbols, which must be the first non whitespace character in the line. There are six levels of headings.
+
+```
+# foo
+## bar
+### baz
+#### foo
+##### bar
+###### baz
+---
+<h1>foo</h1>
+<h2>bar</h2>
+<h3>baz</h3>
+<h4>foo</h4>
+<h5>bar</h5>
+<h6>baz</h6>
+```
+
+## Strong
+```
+s[foo]
+---
+<strong>foo</strong>
+```
+
+## Emphasis
+```
+e[foo]
+---
+<em>foo</em>
+```
+
+## Underline
+```
+u[foo]
+---
+<u>foo</u>
+```
+
+## Delete
+```
+d[foo]
+---
+<del>foo</del>
+```
+
+## Insert
+```
+i[foo]
+---
+<ins>foo</ins>
+```
+
+## Full example
+```
+# Markright
+## Documentation 
+This is the s[markright] doc.
+Please read eu[carefully!]
+
+d[Enjoi!]i[Enjoy!]
+---
+<h1>Markright</h1>
+<h2>Documentation</h2>
+<p>This is the <strong>markright</strong> doc. Please read <em><u>carefully!</em></u></p> 
+<p><del>Enjoi!</del><ins>Enjoy!</ins></p>
+```
+## Markdown comparison
 
 ### Strong
 ```
@@ -158,12 +228,7 @@ Markdown:
 __bar__
 
 Markright:
-[s foo]
-[s:foo]
-[strong foo]
-[strong:foo]
 s[foo]
-s:(foo)
 ```
 
 ### Emphasis
@@ -176,22 +241,10 @@ Markdown:
 _bar_
 
 Markright:
-[e foo]
+e[foo]
 ```
 
-### Deletion
-```
-HTML:
-<del>foo</del>
-
-Markdown:
-Missing feature
-
-Markright:
-[d foo]
-```
-
-### Nested inline elemets
+### Nested inline elements
 ```
 HTML:
 <strong><em>foo</em></strong>
@@ -200,7 +253,15 @@ Markdown:
 **_foo_**
 
 Markright:
-[se foo]
-[s[d foo]]
+se[foo]
 ```
+```
+HTML:
+<em><strong>foo</strong></em>
 
+Markdown:
+_**foo**_
+
+Markright:
+es[foo]
+```
