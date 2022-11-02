@@ -246,7 +246,7 @@ i[foo]
 <ins>foo</ins>
 ```
 
-## Insert
+## Inline code 
 ```
 c[foo]
 ---
