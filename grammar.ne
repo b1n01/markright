@@ -1,27 +1,27 @@
 @{%
-const generate = (ast) => {
+const gen = (ast) => {
 	let result = ''
 	ast.forEach(node => {
-		let value = node.value
-		if(Array.isArray(value)) {
-			value = generate(node.value)
-		} 
+		const value = Array.isArray(node.value) ? gen(node.value) : node.value
 		switch (node.type) {
 			case 'p':
-			result += `<p>${value}</p>`
-			break;
-		case 'h1':
-			result += `<h1>${value}</h1>`
-			break;
-		case 'h2':
-			result += `<h2>${value}</h2>`
-			break;
-		case 'strong':
-			result += `<strong>${value}</strong>`
-			break;
-		default:
-			result += value
-			break;
+				result += `<p>${value}</p>`
+				break;
+			case 'h1':
+				result += `<h1>${value}</h1>`
+				break;
+			case 'h2':
+				result += `<h2>${value}</h2>`
+				break;
+			case 'strong':
+				result += `<strong>${value}</strong>`
+				break;
+			case 'space':
+				result += ' '
+				break;
+			default:
+				result += value
+				break;
 		}
 	});
 	return result
@@ -42,30 +42,39 @@ const lexer = moo.compile({
 
 @lexer lexer
 
-doc -> (%ws|%lb):* blocks (%ws|%lb):*  {% ([,b]) => b %}
-     | (%ws|%lb):* {% () => [] %}
+doc -> (ws1|lb01):* blocks (ws1|lb01):*  {% ([,b]) => gen(b) %}
+     | (ws1|lb01):* {% () => [] %}
 
-blocks -> block %ws:* %lb (%ws:* %lb):+ %ws:* blocks {% ([b,,,,,bs]) => [b, ...bs] %}
-	    | block                          {% ([b]) => [b] %}
+blocks -> block ws0+ lb01 (ws0+ lb01):+ ws0+ blocks {% ([b,,,,,bs]) => [b, ...bs] %}
+	    | block                           {% ([b]) => [b] %}
  
-block -> mblock               {% ([b]) => b %}
+block -> mblock {% id %}
 
 mblock -> h1                              {% ([h]) => ({type: 'h1', value: h}) %}
 		| h2                              {% ([h]) => ({type: 'h2', value: h}) %}
         | p                               {% ([p]) => ({type: 'p', value: p}) %}
 
-h1 -> %h1 (%ws:* inline):? {% ([,i]) => i?.[1] ? " " + i[1] : '' %}
+h1 -> %h1 (ws0+ inline):? {% ([,i]) => i?.[1] ? " " + i[1] : '' %}
 
-h2 -> %h2 (%ws:* inline):? {% ([,i]) => i?.[1] ? " " + i[1] : '' %}
+h2 -> %h2 (ws0+ inline):? {% ([,i]) => i?.[1] ? " " + i[1] : '' %}
 
-p -> inline {% ([i]) => i || '' %}
+p -> inline {% id %}
 
-inline -> strong (%ws:* (%lb %ws:*):? inline):? {% ([s,i]) => [s, ...i?.[2] || ''] %}
-		| %word  (%ws:* (%lb %ws:*):? inline):? {% ([s,i]) => [{type: 'word', value: s.value}, ...i?.[2] || ''] %}
+inline -> (word|strong) ws0+ lb_ws01 inline {% ([[d],ws,o,i]) => [d, ...ws, ...o, ...i] %}
+	    | (word|strong)                     {% ([[d],i])     => [d]           %}
 
-strong -> %OS %ws:* (%lb %ws:*):? text %ws:* (%lb %ws:*):? %CS {% ([,,,t]) => ({type: 'strong', value: t}) %}
+strong -> %OS ws0+ lb_ws01 text ws0+ lb_ws01 %CS {% ([,ws,l,t]) => ({type: 'strong', value: [...ws, ...l, ...t]}) %}
 
-text -> string (%ws:* %lb %ws:* text):? {% ([t,p]) => t + (p?.[3] ? " " + p[3] : '') %}
+text -> string ws0+ lb01 ws0+ text {% ([s,ws1,lb,ws2,t]) => [...s, ...ws1, ...lb, ...ws2, ...t] %} 
+	  | string                     {% ([s])              => [...s]           %}
 
-string -> %word %ws:+ string {% ([w,,t]) => w.value + " " + t %}
-	    | %word {% ([w]) => w.value %}
+string -> word ws1+ string {% ([w,ws,s]) => [w, ...ws, ...s] %}
+	    | word             {% ([w])      => [w]                 %}
+
+word -> %word {% ([w]) => ({ type: 'word', value: w.value }) %}
+
+lb_ws01 -> (lb01 ws0+):? {% ([d]) => d?.length ? [{ type: 'space' }] : [] %}
+ws0+    -> %ws:*         {% ([s]) => s.length ? [{ type: 'space' }] : []  %}
+ws1+    -> %ws:+         {% ()    => [{ type: 'space' }]                  %}
+ws1     -> %ws           {% ()    => [{ type: 'space' }]                  %}
+lb01    -> %lb           {% ()    => [{ type: 'space' }]                  %}
