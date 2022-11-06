@@ -23,9 +23,11 @@ const gen = (ast) => {
 				result += value
 				break;
 		}
-	});
+	})
 	return result
 }
+
+const space = { type: 'space' }
 
 const moo = require("moo");
 const lexer = moo.compile({
@@ -42,7 +44,7 @@ const lexer = moo.compile({
 
 @lexer lexer
 
-doc -> (ws1|lb01):* blocks (ws1|lb01):*  {% ([,b]) => gen(b) %}
+doc -> (ws1|lb01):* blocks (ws1|lb01):*  {% ([,b]) => b %}
      | (ws1|lb01):* {% () => [] %}
 
 blocks -> block ws0+ lb01 (ws0+ lb01):+ ws0+ blocks {% ([b,,,,,bs]) => [b, ...bs] %}
@@ -65,16 +67,23 @@ inline -> (word|strong) ws0+ lb_ws01 inline {% ([[d],ws,o,i]) => [d, ...ws, ...o
 
 strong -> %OS ws0+ lb_ws01 text ws0+ lb_ws01 %CS {% ([,ws,l,t]) => ({type: 'strong', value: [...ws, ...l, ...t]}) %}
 
-text -> string ws0+ lb01 ws0+ text {% ([s,ws1,lb,ws2,t]) => [...s, ...ws1, ...lb, ...ws2, ...t] %} 
-	  | string                     {% ([s])              => [...s]           %}
+text -> string (ws0+ lb01 ws0+ text):? {% ([s, i]) => {
+	let text = [...s]
+	if(i) {
+		const [ws1, lb, ws2, t] = i
+		const ws = [...ws1, ...lb, ...ws2].length ? [space] : []
+		text.push(...ws, ...t)
+	}
+	return text
+} %} 
 
 string -> word ws1+ string {% ([w,ws,s]) => [w, ...ws, ...s] %}
 	    | word             {% ([w])      => [w]                 %}
 
 word -> %word {% ([w]) => ({ type: 'word', value: w.value }) %}
 
-lb_ws01 -> (lb01 ws0+):? {% ([d]) => d?.length ? [{ type: 'space' }] : [] %}
-ws0+    -> %ws:*         {% ([s]) => s.length ? [{ type: 'space' }] : []  %}
-ws1+    -> %ws:+         {% ()    => [{ type: 'space' }]                  %}
-ws1     -> %ws           {% ()    => [{ type: 'space' }]                  %}
-lb01    -> %lb           {% ()    => [{ type: 'space' }]                  %}
+lb_ws01 -> (lb01 ws0+):? {% ([d]) => d?.length ? [space] : [] %}
+ws0+    -> %ws:*         {% ([s]) => s.length ? [space] : []  %}
+ws1+    -> %ws:+         {% ()    => [space]                  %}
+ws1     -> %ws           {% ()    => [space]                  %}
+lb01    -> %lb           {% ()    => [space]                  %}
