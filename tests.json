@@ -1,0 +1,22 @@
+[
+    {
+        "markright": "foo bar",
+        "html": "<p>foo bar</p>",
+        "description": "Paragraph"
+    },
+    {
+        "markright": "   foo   bar   ",
+        "html": "<p>foo bar</p>",
+        "description": "Paragraph spacing"
+    },
+    {
+        "markright": "foo\nbar",
+        "html": "<p>foo bar</p>",
+        "description": "Paragraph on multiple lines"
+    },
+    {
+        "markright": "   foo   \n   bar   ",
+        "html": "<p>foo bar</p>",
+        "description": "Paragraph spacing on multiple lines"
+    }
+]
