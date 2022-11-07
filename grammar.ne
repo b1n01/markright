@@ -27,8 +27,6 @@ const gen = (ast) => {
 	return result
 }
 
-const space = { type: 'space' }
-
 const moo = require("moo");
 const lexer = moo.compile({
     h2: /^[^\S\r\n]*#{2}/,
@@ -44,7 +42,7 @@ const lexer = moo.compile({
 
 @lexer lexer
 
-doc -> (ws1|lb01):* blocks (ws1|lb01):*  {% ([,b]) => b %}
+doc -> (ws1|lb01):* blocks (ws1|lb01):*  {% ([,b]) => gen(b) %}
      | (ws1|lb01):* {% () => [] %}
 
 blocks -> block ws0+ lb01 (ws0+ lb01):+ ws0+ blocks {% ([b,,,,,bs]) => [b, ...bs] %}
@@ -62,19 +60,22 @@ h2 -> %h2 (ws0+ inline):? {% ([,i]) => i?.[1] ? " " + i[1] : '' %}
 
 p -> inline {% id %}
 
-inline -> (word|strong) ws0+ lb_ws01 inline {% ([[d],ws,o,i]) => [d, ...ws, ...o, ...i] %}
-	    | (word|strong)                     {% ([[d],i])     => [d]           %}
+inline -> (word|strong) (ws0+ lb_ws01 inline):? {% ([data, other]) => {
+	const space = other?.[0] || other?.[1] ? [{ type: 'space' }] : []
+	const inline = other?.[2] || []
+	return [...data, ...space, ...inline]
+} %}
 
 strong -> %OS ws0+ lb_ws01 text ws0+ lb_ws01 %CS {% ([,ws,l,t]) => ({type: 'strong', value: [...ws, ...l, ...t]}) %}
 
-text -> string (ws0+ lb01 ws0+ text):? {% ([s, i]) => {
-	let text = [...s]
-	if(i) {
-		const [ws1, lb, ws2, t] = i
-		const ws = [...ws1, ...lb, ...ws2].length ? [space] : []
-		text.push(...ws, ...t)
+text -> string (ws0+ lb01 ws0+ text):? {% ([string, other]) => {
+	let result = string
+	if(other) {
+		const [ws1, lb, ws2, text] = other
+		const space = [...ws1, ...lb, ...ws2].length ? [{ type: 'space' }] : []
+		result.push(...space, ...text)
 	}
-	return text
+	return result
 } %} 
 
 string -> word ws1+ string {% ([w,ws,s]) => [w, ...ws, ...s] %}
@@ -82,8 +83,8 @@ string -> word ws1+ string {% ([w,ws,s]) => [w, ...ws, ...s] %}
 
 word -> %word {% ([w]) => ({ type: 'word', value: w.value }) %}
 
-lb_ws01 -> (lb01 ws0+):? {% ([d]) => d?.length ? [space] : [] %}
-ws0+    -> %ws:*         {% ([s]) => s.length ? [space] : []  %}
-ws1+    -> %ws:+         {% ()    => [space]                  %}
-ws1     -> %ws           {% ()    => [space]                  %}
-lb01    -> %lb           {% ()    => [space]                  %}
+lb_ws01 -> (lb01 ws0+):? {% ([d]) => d?.length ? [{ type: 'space' }] : [] %}
+ws0+    -> %ws:*         {% ([s]) => s.length ? [{ type: 'space' }] : []  %}
+ws1+    -> %ws:+         {% ()    => [{ type: 'space' }]                  %}
+ws1     -> %ws           {% ()    => [{ type: 'space' }]                  %}
+lb01    -> %lb           {% ()    => [{ type: 'space' }]                  %}

@@ -27,7 +27,7 @@ const gen = (ast) => {
 				result += value
 				break;
 		}
-	});
+	})
 	return result
 }
 
@@ -80,13 +80,27 @@ var grammar = {
     {"name": "p", "symbols": ["inline"], "postprocess": id},
     {"name": "inline$subexpression$1", "symbols": ["word"]},
     {"name": "inline$subexpression$1", "symbols": ["strong"]},
-    {"name": "inline", "symbols": ["inline$subexpression$1", "ws0+", "lb_ws01", "inline"], "postprocess": ([[d],ws,o,i]) => [d, ...ws, ...o, ...i]},
-    {"name": "inline$subexpression$2", "symbols": ["word"]},
-    {"name": "inline$subexpression$2", "symbols": ["strong"]},
-    {"name": "inline", "symbols": ["inline$subexpression$2"], "postprocess": ([[d],i])     => [d]},
+    {"name": "inline$ebnf$1$subexpression$1", "symbols": ["ws0+", "lb_ws01", "inline"]},
+    {"name": "inline$ebnf$1", "symbols": ["inline$ebnf$1$subexpression$1"], "postprocess": id},
+    {"name": "inline$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
+    {"name": "inline", "symbols": ["inline$subexpression$1", "inline$ebnf$1"], "postprocess":  ([data, other]) => {
+        	const space = other?.[0] || other?.[1] ? [{ type: 'space' }] : []
+        	const inline = other?.[2] || []
+        	return [...data, ...space, ...inline]
+        } },
     {"name": "strong", "symbols": [(lexer.has("OS") ? {type: "OS"} : OS), "ws0+", "lb_ws01", "text", "ws0+", "lb_ws01", (lexer.has("CS") ? {type: "CS"} : CS)], "postprocess": ([,ws,l,t]) => ({type: 'strong', value: [...ws, ...l, ...t]})},
-    {"name": "text", "symbols": ["string", "ws0+", "lb01", "ws0+", "text"], "postprocess": ([s,ws1,lb,ws2,t]) => [...s, ...ws1, ...lb, ...ws2, ...t]},
-    {"name": "text", "symbols": ["string"], "postprocess": ([s])              => [...s]},
+    {"name": "text$ebnf$1$subexpression$1", "symbols": ["ws0+", "lb01", "ws0+", "text"]},
+    {"name": "text$ebnf$1", "symbols": ["text$ebnf$1$subexpression$1"], "postprocess": id},
+    {"name": "text$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
+    {"name": "text", "symbols": ["string", "text$ebnf$1"], "postprocess":  ([string, other]) => {
+        	let result = string
+        	if(other) {
+        		const [ws1, lb, ws2, text] = other
+        		const space = [...ws1, ...lb, ...ws2].length ? [{ type: 'space' }] : []
+        		result.push(...space, ...text)
+        	}
+        	return result
+        } },
     {"name": "string", "symbols": ["word", "ws1+", "string"], "postprocess": ([w,ws,s]) => [w, ...ws, ...s]},
     {"name": "string", "symbols": ["word"], "postprocess": ([w])      => [w]},
     {"name": "word", "symbols": [(lexer.has("word") ? {type: "word"} : word)], "postprocess": ([w]) => ({ type: 'word', value: w.value })},
