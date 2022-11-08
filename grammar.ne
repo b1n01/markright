@@ -1,6 +1,8 @@
 @{%
+
 const gen = (ast) => {
 	let result = ''
+
 	ast.forEach(node => {
 		const value = Array.isArray(node.value) ? gen(node.value) : node.value
 		switch (node.type) {
@@ -24,10 +26,12 @@ const gen = (ast) => {
 				break;
 		}
 	})
+	
 	return result
 }
 
 const moo = require("moo");
+
 const lexer = moo.compile({
     h2: /^[^\S\r\n]*#{2}/,
     h1: /^[^\S\r\n]*#/,
@@ -42,49 +46,49 @@ const lexer = moo.compile({
 
 @lexer lexer
 
-doc -> (ws1|lb01):* blocks (ws1|lb01):*  {% ([,b]) => gen(b) %}
-     | (ws1|lb01):* {% () => [] %}
+doc -> (ws|lb):* blocks (ws|lb):*  {% ([,b]) => gen(b) %}
+     | (ws|lb):*                   {% ()     => [] %}
 
-blocks -> block ws0+ lb01 (ws0+ lb01):+ ws0+ blocks {% ([b,,,,,bs]) => [b, ...bs] %}
-	    | block                           {% ([b]) => [b] %}
+blocks -> block ws0n lb (ws0n lb):+ ws0n blocks {% ([b,,,,,bs]) => [b, ...bs] %}
+	    | block                                 {% ([b])        => [b]        %}
  
 block -> mblock {% id %}
 
 mblock -> h1                              {% ([h]) => ({type: 'h1', value: h}) %}
 		| h2                              {% ([h]) => ({type: 'h2', value: h}) %}
-        | p                               {% ([p]) => ({type: 'p', value: p}) %}
+        | p                               {% ([p]) => ({type: 'p', value: p})  %}
 
-h1 -> %h1 (ws0+ inline):? {% ([,i]) => i?.[1] ? " " + i[1] : '' %}
-
-h2 -> %h2 (ws0+ inline):? {% ([,i]) => i?.[1] ? " " + i[1] : '' %}
+h1 -> %h1 (ws0n lbws01 inline):? {% ([,i]) => i?.[2] || '' %}
+h2 -> %h2 (ws0n lbws01 inline):? {% ([,i]) => i?.[2] || '' %}
 
 p -> inline {% id %}
 
-inline -> (word|strong) (ws0+ lb_ws01 inline):? {% ([data, other]) => {
-	const space = other?.[0] || other?.[1] ? [{ type: 'space' }] : []
+inline -> (word|strong) (ws0n lbws01 inline):? 
+{% ([data, other]) => {
+	const isWord = data[0].type === 'word'
+	const hasSpaces = other?.[0] || other?.[1]
+	const space = isWord && hasSpaces ? [{ type: 'space' }] : []
 	const inline = other?.[2] || []
 	return [...data, ...space, ...inline]
 } %}
 
-strong -> %OS ws0+ lb_ws01 text ws0+ lb_ws01 %CS {% ([,ws,l,t]) => ({type: 'strong', value: [...ws, ...l, ...t]}) %}
+strong -> %OS ws0n lbws01 text ws0n lbws01 %CS {% ([,ws,l,t]) => ({type: 'strong', value: t}) %}
 
-text -> string (ws0+ lb01 ws0+ text):? {% ([string, other]) => {
-	let result = string
-	if(other) {
-		const [ws1, lb, ws2, text] = other
-		const space = [...ws1, ...lb, ...ws2].length ? [{ type: 'space' }] : []
-		result.push(...space, ...text)
-	}
-	return result
+text -> string (ws0n lb ws0n text):? 
+{% ([string, other]) => {
+	const space = other?.[0] || other?.[1] || other?.[2] ? [{ type: 'space' }] : []
+	const inline = other?.[3] || []
+	return [...string, ...space, ...inline]
 } %} 
 
-string -> word ws1+ string {% ([w,ws,s]) => [w, ...ws, ...s] %}
-	    | word             {% ([w])      => [w]                 %}
+string -> word ws1n string {% ([w,ws,s]) => [w, ...ws, ...s] %}
+	    | word             {% ([w])      => [w]              %}
 
 word -> %word {% ([w]) => ({ type: 'word', value: w.value }) %}
 
-lb_ws01 -> (lb01 ws0+):? {% ([d]) => d?.length ? [{ type: 'space' }] : [] %}
-ws0+    -> %ws:*         {% ([s]) => s.length ? [{ type: 'space' }] : []  %}
-ws1+    -> %ws:+         {% ()    => [{ type: 'space' }]                  %}
-ws1     -> %ws           {% ()    => [{ type: 'space' }]                  %}
-lb01    -> %lb           {% ()    => [{ type: 'space' }]                  %}
+ws     -> %ws         {% ()    => [{ type: 'space' }]                  %}
+ws0n   -> %ws:*       {% ([s]) => s.length ? [{ type: 'space' }] : []  %}
+ws1n   -> %ws:+       {% ()    => [{ type: 'space' }]                  %}
+lb     -> %lb         {% ()    => [{ type: 'space' }]                  %}
+lb01   -> %lb:?       {% ()    => [{ type: 'space' }]                  %}
+lbws01 -> (lb ws0n):? {% ([d]) => d?.length ? [{ type: 'space' }] : [] %}
