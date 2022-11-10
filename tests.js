@@ -1,102 +1,92 @@
 const nearley = require("nearley");
 const { exec } = require("child_process");
 
+/**
+ * Get tests for a block element
+ * @param {string} name The name of the block element
+ * @param {string} s The opening symbol
+ * @param {string} tag The HTML tag
+ * @returns array
+ */
+const blockTests = (n, s, t) => [
+  {
+    markright: `${s}foo bar`,
+    html: `<${t}>foo bar</${t}>`,
+    description: `A ${n}`,
+  },
+  {
+    markright: `   ${s}   foo   bar   `,
+    html: `<${t}>foo bar</${t}>`,
+    description: `A ${n} with spaces`,
+  },
+  {
+    markright: `\n${s}\nfoo\nbar\n`,
+    html: `<${t}>foo bar</${t}>`,
+    description: `A ${n} on multiple lines`,
+  },
+  {
+    markright: `   \n   ${s}   \n   foo   \n   bar   \n  `,
+    html: `<${t}>foo bar</${t}>`,
+    description: `A ${n} on multiple lines with spacing`,
+  },
+  {
+    markright: `${s}foo\n\n${s}bar\n\n\n${s}baz`,
+    html: `<${t}>foo</${t}><${t}>bar</${t}><${t}>baz</${t}>`,
+    description: `Multiple ${n}s`,
+  },
+  {
+    markright: `   ${s}   foo   \n   \n   ${s}   bar   \n   \n   \n   ${s}   baz`,
+    html: `<${t}>foo</${t}><${t}>bar</${t}><${t}>baz</${t}>`,
+    description: `Multiple ${n}s with spacing`,
+  },
+];
+
+/**
+ * Get tests for an inline element
+ * @param {string} n The name of the inline element
+ * @param {string} o The opening symbol
+ * @param {string} c The closing symbol
+ * @param {string} t The HTML tah
+ * @returns array
+ */
+const inlineTests = (n, o, c, t) => [
+  {
+    markright: `${o}foo bar${c}`,
+    html: `<p><${t}>foo bar</${t}></p>`,
+    description: `A ${n}`,
+  },
+  {
+    markright: `   ${o}   foo   ${c}   ${o}   bar   ${c}   `,
+    html: `<p><${t}>foo</${t}><${t}>bar</${t}></p>`,
+    description: `A ${n} with spacing`,
+  },
+  {
+    markright: `\n${o}\nfoo\nbar\n${c}\n`,
+    html: `<p><${t}>foo bar</${t}></p>`,
+    description: `A ${n} on multiple lines`,
+  },
+  {
+    markright: `   \n   ${o}   \n   foo   \n   bar   \n   ${c}   \n   `,
+    html: `<p><${t}>foo bar</${t}></p>`,
+    description: `A ${n} on multiple lines with spacing`,
+  },
+  {
+    markright: `${o}foo${c}\n\n${o}bar${c}\n\n\n${o}baz${c}`,
+    html: `<p><${t}>foo</${t}></p><p><${t}>bar</${t}></p><p><${t}>baz</${t}></p>`,
+    description: `Multiple ${n}`,
+  },
+  {
+    markright: `   ${o}   foo   ${c}   \n   \n   ${o}   bar   ${c}   \n   \n   \n   ${o}   baz  ${c}   `,
+    html: `<p><${t}>foo</${t}></p><p><${t}>bar</${t}></p><p><${t}>baz</${t}></p>`,
+    description: `Multiple ${n} with spacing`,
+  },
+];
+
 const tests = [
-  // Paragraph
-  {
-    markright: "foo bar",
-    html: "<p>foo bar</p>",
-    description: "A paragraph",
-  },
-  {
-    markright: "   foo   bar   ",
-    html: "<p>foo bar</p>",
-    description: "A paragraph with spacing",
-  },
-  {
-    markright: "\nfoo\nbar\n",
-    html: "<p>foo bar</p>",
-    description: "A paragraph on multiple lines",
-  },
-  {
-    markright: "   \n   foo   \n   bar   \n   ",
-    html: "<p>foo bar</p>",
-    description: "A paragraph on multiple lines with spacing",
-  },
-  {
-    markright: "foo\n\nbar\n\n\nbaz",
-    html: "<p>foo</p><p>bar</p><p>baz</p>",
-    description: "Multiple paragraphs",
-  },
-  {
-    markright: "   foo   \n   \n   bar   \n   \n   \n   baz",
-    html: "<p>foo</p><p>bar</p><p>baz</p>",
-    description: "Multiple paragraphs with spacing",
-  },
-
-  // H1
-  {
-    markright: "#foo bar",
-    html: "<h1>foo bar</h1>",
-    description: "An H1",
-  },
-  {
-    markright: "   #   foo   bar   ",
-    html: "<h1>foo bar</h1>",
-    description: "An h1 with spacing",
-  },
-  {
-    markright: "\n#\nfoo\nbar\n",
-    html: "<h1>foo bar</h1>",
-    description: "An H1 on multiple lines",
-  },
-  {
-    markright: "   \n   #   \n   foo   \n   bar   \n   ",
-    html: "<h1>foo bar</h1>",
-    description: "An H1 on multiple lines with spacing",
-  },
-  {
-    markright: "#foo\n\n#bar\n\n\n#baz",
-    html: "<h1>foo</h1><h1>bar</h1><h1>baz</h1>",
-    description: "Multiple h1s",
-  },
-  {
-    markright: "   #   foo   \n   \n   #   bar   \n   \n   \n   #   baz", 
-    html: "<h1>foo</h1><h1>bar</h1><h1>baz</h1>",
-    description: "Multiple h1s with spacing",
-  },
-
-  // Strong
-  {
-    markright: "[s:foo bar]",
-    html: "<p><strong>foo bar</strong></p>",
-    description: "A strong",
-  },
-  {
-    markright: "   [s:   foo   ]   [s:   bar   ]   ",
-    html: "<p><strong>foo</strong><strong>bar</strong></p>",
-    description: "A strong  with spacing",
-  },
-  {
-    markright: "\n[s:\nfoo\nbar\n]\n",
-    html: "<p><strong>foo bar</strong></p>",
-    description: "A strong on multiple lines",
-  },
-  {
-    markright: "   \n   [s:   \n   foo   \n   bar   \n   ]   \n   ",
-    html: "<p><strong>foo bar</strong></p>",
-    description: "A strong on multiple lines with spacing",
-  },
-  {
-    markright: "[s:foo]\n\n[s:bar]\n\n\n[s:baz]",
-    html: "<p><strong>foo</strong></p><p><strong>bar</strong></p><p><strong>baz</strong></p>",
-    description: "Multiple strong",
-  },
-  {
-    markright: "   [s:   foo   ]   \n   \n   [s:   bar   ]   \n   \n   \n   [s:   baz  ]   ",
-    html: "<p><strong>foo</strong></p><p><strong>bar</strong></p><p><strong>baz</strong></p>",
-    description: "Multiple strong with spacing",
-  },
+  ...blockTests("Paragraph", "", "p"),
+  ...blockTests("h1", "#", "h1"),
+  ...blockTests("h2", "##", "h2"),
+  ...inlineTests("Strong", "[s:", "]", "strong"),
 ];
 
 exec("node_modules/nearley/bin/nearleyc.js grammar.ne -o grammar.js", (err) => {
