@@ -10,9 +10,9 @@ Markright is a markdown-inspired markup language. It aims to provide an easy and
 ```
 # Markright
 
-This is the s[Markright] specification
+This is the [s:Markright] specification
 
-Please read eu[carefully!]
+Please read [eu:carefully!]
 ---
 <h1>Markright</h1>
 <p>This is the <strong>Markright</strong> specification.</p>
@@ -87,7 +87,7 @@ foo‧‧‧bar
 Inline elements are elements defined within block elements. Differently from block elements, which are delimited by linebreaks, an inline element requires an opening and a closing notation
 
 ```
-s[foo]
+[s:foo]
 ---
 <p><strong>foo</strong></p>
 ```
@@ -95,7 +95,7 @@ s[foo]
 Multiple inline elements can be defined within the same block elements
 
 ```
-s[foo]‧e[baz]
+[s:foo]‧[e:baz]
 ---
 <p><strong>foo</strong>‧<em>baz</em></p>
 ```
@@ -103,7 +103,7 @@ s[foo]‧e[baz]
 Inline elements can be nested within other inline elements
 
 ```
-se[foo]
+s[e:foo]
 ---
 <p><strong><em>foo</em></strong></p>
 ```
@@ -111,7 +111,7 @@ se[foo]
 An inline element can span across multiple lines within a block element
 
 ```
-s[foo↩
+[s:foo↩
 bar]
 ---
 <p><strong>foo‧bar</strong></p>
@@ -120,18 +120,18 @@ bar]
 An inline element cannot span across multiple block elements. The block element definition wins over the inline element definition and the two blocks are split
 
 ```
-s[foo↩
+[s:foo↩
 ↩
 bar]
 ---
-<p>s[foo</p>
+<p>[s:foo</p>
 <p>bar]</p>
 ```
 
 Initial and final whitespaces are removed
 
 ```
-s[‧‧‧foo‧‧‧]
+[s:‧‧‧foo‧‧‧]
 ---
 <p><strong>foo</strong></p>
 ```
@@ -139,7 +139,7 @@ s[‧‧‧foo‧‧‧]
 Multiple spaces are collapsed into one
 
 ```
-s[foo‧‧‧bar]
+[s:foo‧‧‧bar]
 ---
 <p><strong>foo‧bar</strong></p>
 ```
@@ -203,7 +203,7 @@ Headings are block elements identified by the hash `#` symbols, which must be th
 ### 5.3 Strong
 
 ```
-s[foo]
+[s:foo]
 ---
 <strong>foo</strong>
 ```
@@ -211,7 +211,7 @@ s[foo]
 ### 5.4 Emphasis
 
 ```
-e[foo]
+[e:foo]
 ---
 <em>foo</em>
 ```
@@ -219,7 +219,7 @@ e[foo]
 ### 5.5 Underline
 
 ```
-u[foo]
+[u:foo]
 ---
 <u>foo</u>
 ```
@@ -227,7 +227,7 @@ u[foo]
 ### 5.6 Delete
 
 ```
-d[foo]
+[d:foo]
 ---
 <del>foo</del>
 ```
@@ -235,7 +235,7 @@ d[foo]
 ### 5.7 Insert
 
 ```
-i[foo]
+[i:foo]
 ---
 <ins>foo</ins>
 ```
@@ -243,7 +243,7 @@ i[foo]
 ### 5.8 Inline code 
 
 ```
-c[foo]
+[c:foo]
 ---
 <code>foo</code>
 ```
@@ -261,7 +261,7 @@ Markdown:
 __bar__
 
 Markright:
-s[foo]
+[s:foo]
 ```
 
 ### 6.2 Emphasis
@@ -274,7 +274,7 @@ Markdown:
 _bar_
 
 Markright:
-e[foo]
+[e:foo]
 ```
 
 ### 6.3 Nested inline elements
@@ -283,7 +283,7 @@ Markdown
 **_foo_**
 
 Markright
-se[foo]
+[se:foo]
 
 HTML
 <strong><em>foo</em></strong>
@@ -294,7 +294,7 @@ Markdown
 _**foo**_
 
 Markright
-es[foo]
+[es:foo]
 
 HTML
 <em><strong>foo</strong></em>
