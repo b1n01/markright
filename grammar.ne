@@ -52,15 +52,15 @@ const spaces = {
 
 const lexer = moo.states({
 	main:{
-    	h6: /^[^\S\r\n]*#{6}/,
+		h6: /^[^\S\r\n]*#{6}/,
 		h5: /^[^\S\r\n]*#{5}/,
 		h4: /^[^\S\r\n]*#{4}/,
 		h3: /^[^\S\r\n]*#{3}/,
 		h2: /^[^\S\r\n]*#{2}/,
     	h1: /^[^\S\r\n]*#/,
-		OS: {match: /\[[seduci]{1,6}:/, push: 'inline'},
-		word: /(?:(?!\[[seduci]{1,6}:)[^\s])+/,
 		...spaces,
+		OS: {match: /\[[sudice]{1,6}:/, push: 'inline'},
+		word: /(?:(?!\[[sudice]{1,6}:)[^\s])+/,
 	},
 	inline: {
 		word: /[^\s\]]+/,
@@ -81,23 +81,17 @@ blocks -> block ws0n lb (ws0n lb):+ ws0n blocks {% ([b,,,,,bs]) => [b, ...bs] %}
  
 block -> mblock {% id %}
 
-mblock -> h1                              {% ([h]) => ({type: 'h1', value: h}) %}
-		| h2                              {% ([h]) => ({type: 'h2', value: h}) %}
-		| h3                              {% ([h]) => ({type: 'h3', value: h}) %}
-		| h4                              {% ([h]) => ({type: 'h4', value: h}) %}
-		| h5                              {% ([h]) => ({type: 'h5', value: h}) %}
-		| h6                              {% ([h]) => ({type: 'h6', value: h}) %}
-        | p                               {% ([p]) => ({type: 'p', value: p})  %}
+mblock -> headings  {% id %}
+        | p         {% id %}
 
-h1 -> %h1 (ws0n lbws01 inline):? {% ([,i]) => i?.[2] || '' %}
-h2 -> %h2 (ws0n lbws01 inline):? {% ([,i]) => i?.[2] || '' %}
-h3 -> %h3 (ws0n lbws01 inline):? {% ([,i]) => i?.[2] || '' %}
-h4 -> %h4 (ws0n lbws01 inline):? {% ([,i]) => i?.[2] || '' %}
-h5 -> %h5 (ws0n lbws01 inline):? {% ([,i]) => i?.[2] || '' %}
-h6 -> %h6 (ws0n lbws01 inline):? {% ([,i]) => i?.[2] || '' %}
+headings -> (%h1|%h2|%h3|%h4|%h5|%h6) (ws0n lbws01 inline):?
+{% ([h,i]) => {
+	console.log(h[0].type)
+	return {type: h[0].type, value: i?.[2] || ''}
+} %}
 
 
-p -> inline {% id %}
+p -> inline {% ([p]) => ({type: 'p', value: p})  %}
 
 inline -> (word|strong) (ws0n lbws01 inline):? 
 {% ([data, other]) => {
