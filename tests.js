@@ -123,18 +123,5 @@ exec("node_modules/nearley/bin/nearleyc.js grammar.ne -o grammar.js", (err) => {
       "\n" + (failed ? "🚨" : "🎉"),
       `${passed}/${passed + failed} tests passed`
     );
-
-
-    
-  const parser = new nearley.Parser(nearley.Grammar.fromCompiled(grammar));
-  parser.feed(`## Ciaone[se:Mona
-    zza] sisi
-    
-    Dome sono!
-    
-    {}:"?>!@#$%^&*()_++
-    
-    ####### HE HE`);
-  console.log(parser.results[0]);
   }
 });
