@@ -57,7 +57,7 @@ const inlineTests = (n, o, c, t) => [
   },
   {
     markright: `   ${o}   foo   ${c}   ${o}   bar   ${c}   `,
-    html: `<p><${t}>foo</${t}><${t}>bar</${t}></p>`,
+    html: `<p><${t}>foo</${t}> <${t}>bar</${t}></p>`,
     description: `A ${n} with spacing`,
   },
   {
@@ -84,9 +84,18 @@ const inlineTests = (n, o, c, t) => [
 
 const tests = [
   ...blockTests("Paragraph", "", "p"),
-  ...blockTests("h1", "#", "h1"),
-  ...blockTests("h2", "##", "h2"),
+  ...blockTests("H1", "#", "h1"),
+  ...blockTests("H2", "##", "h2"),
+  ...blockTests("H3", "###", "h3"),
+  ...blockTests("H4", "####", "h4"),
+  ...blockTests("H5", "#####", "h5"),
+  ...blockTests("H6", "######", "h6"),
   ...inlineTests("Strong", "[s:", "]", "strong"),
+  ...inlineTests("Emphasis", "[e:", "]", "em"),
+  ...inlineTests("Underline", "[u:", "]", "u"),
+  ...inlineTests("Delete", "[d:", "]", "del"),
+  ...inlineTests("Insert", "[i:", "]", "ins"),
+  ...inlineTests("Code", "[c:", "]", "code"),
 ];
 
 exec("node_modules/nearley/bin/nearleyc.js grammar.ne -o grammar.js", (err) => {
@@ -95,17 +104,17 @@ exec("node_modules/nearley/bin/nearleyc.js grammar.ne -o grammar.js", (err) => {
   } else {
     const grammar = require("./grammar.js");
     let passed = (failed = 0);
-    tests.forEach((test) => {
+    tests.forEach((test, index) => {
       const parser = new nearley.Parser(nearley.Grammar.fromCompiled(grammar));
       parser.feed(test.markright);
       const html = parser.results[0];
 
       if (html != test.html) {
-        console.log("❌", test.description);
+        console.log(`[${index + 1}/${tests.length}] ❌ ${test.description}`);
         console.log(`   Expected: "${test.html}"\n   Found:    "${html}"`);
         failed++;
       } else {
-        console.log("✅", test.description);
+        console.log(`[${index + 1}/${tests.length}] ✅`, test.description);
         passed++;
       }
     });
@@ -114,5 +123,18 @@ exec("node_modules/nearley/bin/nearleyc.js grammar.ne -o grammar.js", (err) => {
       "\n" + (failed ? "🚨" : "🎉"),
       `${passed}/${passed + failed} tests passed`
     );
+
+
+    
+  const parser = new nearley.Parser(nearley.Grammar.fromCompiled(grammar));
+  parser.feed(`## Ciaone[se:Mona
+    zza] sisi
+    
+    Dome sono!
+    
+    {}:"?>!@#$%^&*()_++
+    
+    ####### HE HE`);
+  console.log(parser.results[0]);
   }
 });
