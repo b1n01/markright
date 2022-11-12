@@ -6,6 +6,6 @@
 - [x] Standardize naming: ws0+, ws1+ and ws01 for: zero or more ws, at least one ws and zero or one ws
 - [ ] Handle comments
 - [ ] Test nested inline elements
-- [ ] Unify logic for headings (h1, h2, ecc. have duplicated postprocess functions)
+- [x] Unify logic for headings (h1, h2, ecc. have duplicated postprocess functions)
 - [ ] Inline elements like [ss:foo] are valid, is it ok?
 - [ ] Return useful syntax errors
