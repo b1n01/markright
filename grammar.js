@@ -62,8 +62,8 @@ const lexer = moo.states({
 		h3: /^[^\S\r\n]*#{3}/,
 		h2: /^[^\S\r\n]*#{2}/,
     	h1: /^[^\S\r\n]*#/,
-		OS: {match: /\[[seudic]{1,6}:/, push: 'inline'},
-		word: /(?:(?!\[[seudic]{1,6}:)[^\s])+/,
+		OS: {match: /\[[seduci]{1,6}:/, push: 'inline'},
+		word: /(?:(?!\[[seduci]{1,6}:)[^\s])+/,
 		...spaces,
 	},
 	inline: {
