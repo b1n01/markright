@@ -4,65 +4,68 @@
 function id(x) { return x[0]; }
 
 
-const moo = require("moo");
+const moo = require("moo")
 
 //------
 // Types
 //------
 
 const inlineTypes = {
-	s: 'strong',
-	e: 'em',
-	u: 'u',
-	d: 'del',
-	i: 'ins',
-	c: 'code',
+	s: "strong",
+	e: "em",
+	u: "u",
+	d: "del",
+	i: "ins",
+	c: "code",
 }
 
-const spaceElement = { type: 'space', value: ' ' }
+const spaceElement = {
+	type: "space",
+	value: " "
+}
 
 //-----------
 // Formatters
 //-----------
 
 const gen = (ast) => {
-	let result = ''
+	let result = ""
 	ast.forEach(node => {
 		const value = Array.isArray(node.value) ? gen(node.value) : node.value
 		switch (node.type) {
-			case 'p':
-			case 'h1':
-			case 'h2':
-			case 'h3':
-			case 'h4':
-			case 'h5':
-			case 'h6':
-			case 'strong':
-			case 'em':
-			case 'u':
-			case 'ins':
-			case 'del':
-			case 'code':
+			case "p":
+			case "h1":
+			case "h2":
+			case "h3":
+			case "h4":
+			case "h5":
+			case "h6":
+			case "strong":
+			case "em":
+			case "u":
+			case "ins":
+			case "del":
+			case "code":
 				result += `<${node.type}>${value}</${node.type}>`
-				break;
-			case 'space':
-			case 'word':
+				break
+			case "space":
+			case "word":
 				result += value
-				break;
+				break
 			default:
 	 			throw `${node.type} is not a valid type`
-				break;
+				break
 		}
 	})
 	return result
 }
 
 const fmtHs = ([h,i]) => {
-	return {type: h[0].type, value: i?.[2] || ''}
+	return {type: h[0].type, value: i?.[2] || ""}
 }
 
 const fmtP = ([p]) => {
-	return {type: 'p', value: p}
+	return {type: "p", value: p}
 }
 
 const fmtLine = ([data, other]) => {
@@ -73,8 +76,8 @@ const fmtLine = ([data, other]) => {
 }
 
 const fmtInline = ([os,,,t]) => {
-	const modifiers = os.value.slice(1, -1).split('')
-	const uniq = [...new Set(modifiers)];
+	const modifiers = os.value.slice(1, -1).split("")
+	const uniq = [...new Set(modifiers)]
 	let value = t
 	uniq.reverse().forEach(modifier => {
 		value = [{type: inlineTypes[modifier], value}]
@@ -93,7 +96,7 @@ const fmtString = ([w,s]) => {
 }
 
 const fmtWord = ([w]) => {
-	return { type: 'word', value: w.value }
+	return { type: "word", value: w.value }
 }
 
 const fmtBlocks = ([b,bs]) => {
@@ -128,10 +131,10 @@ const lexer = moo.states({
 		h4: /^[^\S\r\n]*#{4}/,
 		h3: /^[^\S\r\n]*#{3}/,
 		h2: /^[^\S\r\n]*#{2}/,
-    	h1: /^[^\S\r\n]*#/,
+		h1: /^[^\S\r\n]*#/,
 		...spaceTokens,
-		OS: {match: /\[[sudice]{1,6}:/, push: 'inline'},
-		comment: {match: "//", push: 'comment'},
+		OS: {match: /\[[sudice]{1,6}:/, push: "inline"},
+		comment: {match: "//", push: "comment"},
 		word: /(?:(?!\[[sudice]{1,6}:)[^\s])+/,
 	},
 	inline: {
