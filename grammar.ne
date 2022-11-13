@@ -15,7 +15,7 @@ const inlineTypes = {
 	c: 'code',
 }
 
-const typeSpace = { type: 'space', value: ' ' }
+const spaceElement = { type: 'space', value: ' ' }
 
 //-----------
 // Formatters
@@ -53,22 +53,22 @@ const gen = (ast) => {
 	return result
 }
 
-const fmtHeadings = ([h,i]) => {
+const fmtHs = ([h,i]) => {
 	return {type: h[0].type, value: i?.[2] || ''}
 }
 
-const fmtParagraph = ([p]) => {
+const fmtP = ([p]) => {
 	return {type: 'p', value: p}
 }
 
-const fmtInline = ([data, other]) => {
+const fmtLine = ([data, other]) => {
 	const hasSpaces = other?.[0].length || other?.[1].length
-	const space = hasSpaces ? [typeSpace] : []
-	const inline = other?.[2] || []
-	return [...data, ...space, ...inline]
+	const space = hasSpaces ? [spaceElement] : []
+	const line = other?.[2] || []
+	return [...data, ...space, ...line]
 }
 
-const fmtStrong = ([os,ws,l,t]) => {
+const fmtInline = ([os,,,t]) => {
 	const modifiers = os.value.slice(1, -1).split('')
 	const uniq = [...new Set(modifiers)];
 	let value = t
@@ -79,9 +79,9 @@ const fmtStrong = ([os,ws,l,t]) => {
 }
 
 const fmtText = ([string, other]) => {
-	const space = other?.[0] || other?.[1] || other?.[2] ? [typeSpace] : []
-	const inline = other?.[3] || []
-	return [...string, ...space, ...inline]
+	const space = other?.[0] || other?.[1] || other?.[2] ? [spaceElement] : []
+	const text = other?.[3] || []
+	return [...string, ...space, ...text]
 }
 
 const fmtString = ([w,s]) => {
@@ -100,11 +100,19 @@ const fmtDoc = ([,b]) => {
 	return gen(b?.[0] || [])
 }
 
+const fmtSpace = () => {
+	return [spaceElement]
+}
+
+const fmtMBlock = ([d]) => {
+	return d[0]
+}
+
 //------
 // Lexer
 //------
 
-const spaces = {
+const spaceTokens = {
 	ws: /[^\S\r\n]/,
 	lb: { match: /[\n\r]/, lineBreaks: true }
 }
@@ -117,14 +125,19 @@ const lexer = moo.states({
 		h3: /^[^\S\r\n]*#{3}/,
 		h2: /^[^\S\r\n]*#{2}/,
     	h1: /^[^\S\r\n]*#/,
-		...spaces,
+		...spaceTokens,
 		OS: {match: /\[[sudice]{1,6}:/, push: 'inline'},
+		comment: {match: "//", push: 'comment'},
 		word: /(?:(?!\[[sudice]{1,6}:)[^\s])+/,
 	},
 	inline: {
 		word: /[^\s\]]+/,
 		CS: {match: "]", pop: 1},
-		...spaces,
+		...spaceTokens,
+	},
+	comment: {
+		word: /[^\r\n]+/,
+		lb: { match: /[\n\r]/, lineBreaks: true, pop: 1 },
 	},
 })
 
@@ -132,21 +145,20 @@ const lexer = moo.states({
 
 @lexer lexer
 
-doc      -> (ws|lb):* (blocks (ws|lb):*):?                   {% fmtDoc       %}
-blocks   -> block (ws0n lb (ws0n lb):+ ws0n blocks):?        {% fmtBlocks    %}
-block    -> mblock                                           {% id           %}
-mblock   -> (headings|p)                                     {% ([d])=>d[0]  %}
-headings -> (%h1|%h2|%h3|%h4|%h5|%h6) (ws0n lbws01 inline):? {% fmtHeadings  %}
-p        -> inline                                           {% fmtParagraph %}
-inline   -> (word|strong) (ws0n lbws01 inline):?             {% fmtInline    %}
-strong   -> %OS ws0n lbws01 text ws0n lbws01 %CS             {% fmtStrong    %}
-text     -> string (ws0n lb ws0n text):?                     {% fmtText      %} 
-string   -> word (ws1n string):?                             {% fmtString    %}
-word     -> %word                                            {% fmtWord      %}
+doc    -> (ws|lb):* (blocks (ws|lb):*):?                      {% fmtDoc    %}
+blocks -> block (ws0n lb (ws0n lb):+ ws0n blocks):?           {% fmtBlocks %}
+block  -> mblock                                              {% id        %}
+mblock -> (hs|p)                                              {% fmtMBlock %}
+hs     -> (%h1|%h2|%h3|%h4|%h5|%h6) (ws0n (lb ws0n):? line):? {% fmtHs     %}
+p      -> line                                                {% fmtP      %}
+line   -> (word|inline) (ws0n (lb ws0n):? line):?             {% fmtLine   %}
+inline -> %OS ws0n (lb ws0n):? text ws0n (lb ws0n):? %CS      {% fmtInline %}
+text   -> string (ws0n lb ws0n text):?                        {% fmtText   %} 
+string -> word (ws1n string):?                                {% fmtString %}
+word   -> %word                                               {% fmtWord   %}
 
-ws     -> %ws         {% ()    => [typeSpace]                  %}
-ws0n   -> %ws:*       {% ([s]) => s.length ? [typeSpace] : []  %}
-ws1n   -> %ws:+       {% ()    => [typeSpace]                  %}
-lb     -> %lb         {% ()    => [typeSpace]                  %}
-lb01   -> %lb:?       {% ()    => [typeSpace]                  %}
-lbws01 -> (lb ws0n):? {% ([d]) => d?.length ? [typeSpace] : [] %}
+ws     -> %ws   {% fmtSpace %}
+ws0n   -> %ws:* {% fmtSpace %}
+ws1n   -> %ws:+ {% fmtSpace %}
+lb     -> %lb   {% fmtSpace %}
+lb01   -> %lb:? {% fmtSpace %}
