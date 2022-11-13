@@ -1,79 +1,78 @@
 @{%
 
-const moo = require("moo")
+const moo = require("moo");
 
 //------
 // Types
 //------
 
 const inlineTypes = {
-	s: "strong",
-	e: "em",
-	u: "u",
-	d: "del",
-	i: "ins",
-	c: "code",
+	s: 'strong',
+	e: 'em',
+	u: 'u',
+	d: 'del',
+	i: 'ins',
+	c: 'code',
 }
 
-const spaceElement = {
-	type: "space",
-	value: " "
-}
+const spaceElement = { type: 'space', value: ' ' }
 
 //-----------
 // Formatters
 //-----------
 
 const gen = (ast) => {
-	let result = ""
+	let result = ''
 	ast.forEach(node => {
 		const value = Array.isArray(node.value) ? gen(node.value) : node.value
 		switch (node.type) {
-			case "p":
-			case "h1":
-			case "h2":
-			case "h3":
-			case "h4":
-			case "h5":
-			case "h6":
-			case "strong":
-			case "em":
-			case "u":
-			case "ins":
-			case "del":
-			case "code":
+			case 'p':
+			case 'h1':
+			case 'h2':
+			case 'h3':
+			case 'h4':
+			case 'h5':
+			case 'h6':
+			case 'strong':
+			case 'em':
+			case 'u':
+			case 'ins':
+			case 'del':
+			case 'code':
 				result += `<${node.type}>${value}</${node.type}>`
-				break
-			case "space":
-			case "word":
+				break;
+			case 'space':
+			case 'word':
 				result += value
-				break
+				break;
+			case 'comment':
+				break;
 			default:
 	 			throw `${node.type} is not a valid type`
-				break
+				break;
 		}
 	})
 	return result
 }
 
 const fmtHs = ([h,i]) => {
-	return {type: h[0].type, value: i?.[2] || ""}
+	return {type: h[0].type, value: i?.[2] || ''}
 }
 
 const fmtP = ([p]) => {
-	return {type: "p", value: p}
+	return {type: 'p', value: p}
 }
 
 const fmtLine = ([data, other]) => {
-	const hasSpaces = other?.[0].length || other?.[1].length
+	const hasSpaces = other?.[0]?.length || other?.[1]?.length
 	const space = hasSpaces ? [spaceElement] : []
 	const line = other?.[2] || []
 	return [...data, ...space, ...line]
 }
 
 const fmtInline = ([os,,,t]) => {
-	const modifiers = os.value.slice(1, -1).split("")
-	const uniq = [...new Set(modifiers)]
+	const modifiers = os.value.slice(1, -1).split('')
+	const uniq = [...new Set(modifiers)];
 	let value = t
 	uniq.reverse().forEach(modifier => {
 		value = [{type: inlineTypes[modifier], value}]
@@ -92,7 +91,7 @@ const fmtString = ([w,s]) => {
 }
 
 const fmtWord = ([w]) => {
-	return { type: "word", value: w.value }
+	return { type: 'word', value: w.value }
 }
 
 const fmtBlocks = ([b,bs]) => {
@@ -103,11 +102,19 @@ const fmtDoc = ([,b]) => {
 	return gen(b?.[0] || [])
 }
 
-const fmtSpace = () => {
-	return [spaceElement]
+const fmtCmt = () => {
+	return { type: 'comment', value: null }
+}
+
+const fmtSpace = ([d]) => {
+	return d.type || d.length ? [spaceElement] : []
 }
 
 const fmtMBlock = ([d]) => {
+	return d[0]
+}
+
+const fmtBlock = ([d]) => {
 	return d[0]
 }
 
@@ -127,20 +134,21 @@ const lexer = moo.states({
 		h4: /^[^\S\r\n]*#{4}/,
 		h3: /^[^\S\r\n]*#{3}/,
 		h2: /^[^\S\r\n]*#{2}/,
-		h1: /^[^\S\r\n]*#/,
+    	h1: /^[^\S\r\n]*#/,
 		...spaceTokens,
-		OI: {match: /\[[sudice]{1,6}:/, push: "inline"},
-		comment: {match: "//", push: "comment"},
-		word: /(?:(?!\[[sudice]{1,6}:)[^\s])+/,
+		OS: {match: /\[[sudice]{1,6}:/, push: 'inline'},
+		OC: {match: "/*", push: 'comment'},
+		word: /(?:(?!\[[sudice]{1,6}:|\/\*)[^\s])+/,
 	},
 	inline: {
 		word: /[^\s\]]+/,
-		CI: {match: "]", pop: 1},
+		CS: {match: "]", pop: 1},
 		...spaceTokens,
 	},
 	comment: {
-		word: /[^\r\n]+/,
-		lb: { match: /[\n\r]/, lineBreaks: true, pop: 1 },
+		cmt: { match: /(?:(?!\*\/)[\S\s])+/, lineBreaks: true },
+		CC: {match: "*/", pop: 1},
+		...spaceTokens
 	},
 })
 
@@ -150,15 +158,16 @@ const lexer = moo.states({
 
 doc    -> (ws|lb):* (blocks (ws|lb):*):?                      {% fmtDoc    %}
 blocks -> block (ws0n lb (ws0n lb):+ ws0n blocks):?           {% fmtBlocks %}
-block  -> mblock                                              {% id        %}
+block  -> (mblock)                                            {% fmtBlock  %}
 mblock -> (hs|p)                                              {% fmtMBlock %}
 hs     -> (%h1|%h2|%h3|%h4|%h5|%h6) (ws0n (lb ws0n):? line):? {% fmtHs     %}
 p      -> line                                                {% fmtP      %}
-line   -> (word|inline) (ws0n (lb ws0n):? line):?             {% fmtLine   %}
-inline -> %OI ws0n (lb ws0n):? text ws0n (lb ws0n):? %CI      {% fmtInline %}
+line   -> (word|inline|cmt) (ws0n (lb ws0n):? line):?         {% fmtLine   %}
+inline -> %OS ws0n (lb ws0n):? text ws0n (lb ws0n):? %CS      {% fmtInline %}
 text   -> string (ws0n lb ws0n text):?                        {% fmtText   %} 
 string -> word (ws1n string):?                                {% fmtString %}
 word   -> %word                                               {% fmtWord   %}
+cmt    -> %OC %cmt:? %CC                                      {% fmtCmt    %}
 
 ws     -> %ws   {% fmtSpace %}
 ws0n   -> %ws:* {% fmtSpace %}

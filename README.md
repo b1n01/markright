@@ -25,12 +25,13 @@ Examples in this document represent whitespace characters by a point symbol `‧
 
 ## 4. Syntax
 
-Markright syntax has four types of elements:
+Markright syntax has five types of elements:
  
 - Empty
 - Block
 - Inline
 - Fenced
+- Comment
 
 ### 4.1 Empty elements
 
@@ -167,6 +168,36 @@ bar↩
 ---
 <pre><code>foo bar</code></pre>
 ````
+
+### 4.5 Comment elements
+
+TODO update this section for block comments 
+
+Comment elements, also called "comments", are elements that can be only placed as last element in a line before the linebreak and are not converted into HTML. 
+
+They can be on empty lines
+
+```
+//‧foo
+---
+```
+
+At the end of a block
+
+```
+foo‧//‧bar
+---
+<p>foo</p>
+```
+
+Or within a block
+
+```
+[s:foo‧//‧bar↩
+baz]
+---
+<p><strong>foo baz</strong></p>
+```
 
 ## 5 Reference
 
