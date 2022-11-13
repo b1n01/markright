@@ -129,13 +129,13 @@ const lexer = moo.states({
 		h2: /^[^\S\r\n]*#{2}/,
 		h1: /^[^\S\r\n]*#/,
 		...spaceTokens,
-		OS: {match: /\[[sudice]{1,6}:/, push: "inline"},
+		OI: {match: /\[[sudice]{1,6}:/, push: "inline"},
 		comment: {match: "//", push: "comment"},
 		word: /(?:(?!\[[sudice]{1,6}:)[^\s])+/,
 	},
 	inline: {
 		word: /[^\s\]]+/,
-		CS: {match: "]", pop: 1},
+		CI: {match: "]", pop: 1},
 		...spaceTokens,
 	},
 	comment: {
@@ -155,7 +155,7 @@ mblock -> (hs|p)                                              {% fmtMBlock %}
 hs     -> (%h1|%h2|%h3|%h4|%h5|%h6) (ws0n (lb ws0n):? line):? {% fmtHs     %}
 p      -> line                                                {% fmtP      %}
 line   -> (word|inline) (ws0n (lb ws0n):? line):?             {% fmtLine   %}
-inline -> %OS ws0n (lb ws0n):? text ws0n (lb ws0n):? %CS      {% fmtInline %}
+inline -> %OI ws0n (lb ws0n):? text ws0n (lb ws0n):? %CI      {% fmtInline %}
 text   -> string (ws0n lb ws0n text):?                        {% fmtText   %} 
 string -> word (ws1n string):?                                {% fmtString %}
 word   -> %word                                               {% fmtWord   %}
