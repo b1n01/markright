@@ -1,5 +1,9 @@
 {
-  "dependencies": {
+  "scripts": {
+    "railroad": "node node_modules/nearley/bin/nearley-railroad.js grammar.ne -o raildoad.html",
+    "test": "npx -y nodemon tests.js -w tests.js"
+  },
+  "devDependencies": {
     "nearley": "^2.20.1"
   }
 }
