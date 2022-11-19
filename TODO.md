@@ -4,7 +4,9 @@
 - [x] This should work but doesn't "domo[s:dosso]la -> domo<strong>dosso</strong>la"
 - [x] Find a way to dynamically match the inline type (s,e,c...), [check this](https://stackoverflow.com/questions/3101366/regex-to-match-all-permutations-of-1-2-3-4-without-repetition)
 - [x] Standardize naming: ws0+, ws1+ and ws01 for: zero or more ws, at least one ws and zero or one ws
-- [ ] Handle comments
+- [x] Handle blocks comments
+- [ ] Handle inline comments
+- [x] Test comments
 - [ ] Test nested inline elements
 - [x] Unify logic for headings (h1, h2, ecc. have duplicated postprocess functions)
 - [ ] Inline elements like [ss:foo] are valid, is it ok?

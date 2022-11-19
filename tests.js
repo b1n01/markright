@@ -12,32 +12,32 @@ const blockTests = (n, s, t) => [
   {
     markright: `${s}foo bar`,
     html: `<${t}>foo bar</${t}>`,
-    description: `A ${n}`,
+    description: `${n}`,
   },
   {
     markright: `   ${s}   foo   bar   `,
     html: `<${t}>foo bar</${t}>`,
-    description: `A ${n} with spaces`,
+    description: `${n} with spaces`,
   },
   {
     markright: `\n${s}\nfoo\nbar\n`,
     html: `<${t}>foo bar</${t}>`,
-    description: `A ${n} on multiple lines`,
+    description: `${n} on multiple lines`,
   },
   {
     markright: `   \n   ${s}   \n   foo   \n   bar   \n  `,
     html: `<${t}>foo bar</${t}>`,
-    description: `A ${n} on multiple lines with spacing`,
+    description: `${n} on multiple lines with spacing`,
   },
   {
     markright: `${s}foo\n\n${s}bar\n\n\n${s}baz`,
     html: `<${t}>foo</${t}><${t}>bar</${t}><${t}>baz</${t}>`,
-    description: `Multiple ${n}s`,
+    description: `Multiple ${n}`,
   },
   {
     markright: `   ${s}   foo   \n   \n   ${s}   bar   \n   \n   \n   ${s}   baz`,
     html: `<${t}>foo</${t}><${t}>bar</${t}><${t}>baz</${t}>`,
-    description: `Multiple ${n}s with spacing`,
+    description: `Multiple ${n} with spacing`,
   },
 ];
 
@@ -53,22 +53,22 @@ const inlineTests = (n, o, c, t) => [
   {
     markright: `${o}foo bar${c}`,
     html: `<p><${t}>foo bar</${t}></p>`,
-    description: `A ${n}`,
+    description: `${n}`,
   },
   {
     markright: `   ${o}   foo   ${c}   ${o}   bar   ${c}   `,
     html: `<p><${t}>foo</${t}> <${t}>bar</${t}></p>`,
-    description: `A ${n} with spacing`,
+    description: `${n} with spacing`,
   },
   {
     markright: `\n${o}\nfoo\nbar\n${c}\n`,
     html: `<p><${t}>foo bar</${t}></p>`,
-    description: `A ${n} on multiple lines`,
+    description: `${n} on multiple lines`,
   },
   {
     markright: `   \n   ${o}   \n   foo   \n   bar   \n   ${c}   \n   `,
     html: `<p><${t}>foo bar</${t}></p>`,
-    description: `A ${n} on multiple lines with spacing`,
+    description: `${n} on multiple lines with spacing`,
   },
   {
     markright: `${o}foo${c}\n\n${o}bar${c}\n\n\n${o}baz${c}`,
@@ -79,6 +79,83 @@ const inlineTests = (n, o, c, t) => [
     markright: `   ${o}   foo   ${c}   \n   \n   ${o}   bar   ${c}   \n   \n   \n   ${o}   baz  ${c}   `,
     html: `<p><${t}>foo</${t}></p><p><${t}>bar</${t}></p><p><${t}>baz</${t}></p>`,
     description: `Multiple ${n} with spacing`,
+  },
+];
+
+/**
+ * Get tests for the comment element
+ * @returns array
+ */
+const commentTests = () => [
+  {
+    markright: `/*foo bar*/`,
+    html: ``,
+    description: `Comment`,
+  },
+  {
+    markright: `   /*   foo bar   */   `,
+    html: ``,
+    description: `Comment with spaces`,
+  },
+  {
+    markright: `\n/*\nfoo\nbar*/\n`,
+    html: ``,
+    description: `Comment on multiple lines`,
+  },
+  {
+    markright: `   \n   /*   \n   foo   \n   bar   \n  */   \n   `,
+    html: ``,
+    description: `Comment on multiple lines with spacing`,
+  },
+  {
+    markright: `/*foo*/\n\n/*bar*/\n\n\n/*baz*/`,
+    html: ``,
+    description: `Multiple comments`,
+  },
+  {
+    markright: `   /*   foo   */   \n   \n   /*   bar   */   \n   \n   \n   /*   baz   */   `,
+    html: ``,
+    description: `Multiple comment with spacing`,
+  },
+  {
+    markright: `foo/* bar */`,
+    html: `<p>foo</p>`,
+    description: `Comment after a paragraph`,
+  },
+  {
+    markright: `foo /* bar */`,
+    html: `<p>foo </p>`,
+    description: `Comment after a paragraph with spacing`,
+  },
+  {
+    markright: `/* bar */foo`,
+    html: `<p>foo</p>`,
+    description: `Comment before a paragraph`,
+  },
+  {
+    markright: `/* bar */ foo`,
+    html: `<p> foo</p>`,
+    description: `Comment before a paragraph with spacing`,
+  },
+  {
+    markright: `#foo/* bar */`,
+    html: `<h1>foo</h1>`,
+    description: `Comment after an H1`,
+  },
+  {
+    markright: `#foo /* bar */`,
+    html: `<h1>foo </h1>`,
+    description: `Comment after an H1 with spacing`,
+  },
+  {
+    markright: `/* bar */#foo`,
+    html: `<p>#foo</p>`,
+    description: `Comment before an H1`,
+  },
+  {
+    markright: `/* bar */ #foo`,
+    html: `<p> #foo</p>`,
+    description: `Comment before an H1 with spacing`,
   },
 ];
 
@@ -96,6 +173,7 @@ const tests = [
   ...inlineTests("Delete", "[d:", "]", "del"),
   ...inlineTests("Insert", "[i:", "]", "ins"),
   ...inlineTests("Code", "[c:", "]", "code"),
+  ...commentTests(),
 ];
 
 exec("node_modules/nearley/bin/nearleyc.js grammar.ne -o grammar.js", (err) => {
@@ -114,7 +192,7 @@ exec("node_modules/nearley/bin/nearleyc.js grammar.ne -o grammar.js", (err) => {
         console.log(`   Expected: "${test.html}"\n   Found:    "${html}"`);
         failed++;
       } else {
-        console.log(`[${index + 1}/${tests.length}] ✅`, test.description);
+        console.log(`✅`, test.description);
         passed++;
       }
     });

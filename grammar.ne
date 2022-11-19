@@ -48,6 +48,7 @@ const gen = (ast) => {
 			case 'comment':
 				break;
 			default:
+				console.log(JSON.stringify(node)) 
 	 			throw `${node.type} is not a valid type`
 				break;
 		}
@@ -60,7 +61,10 @@ const fmtHs = ([h,i]) => {
 }
 
 const fmtP = ([p]) => {
-	return {type: 'p', value: p}
+	const onlyCmts = p[0].reduce((acc, i) => {
+		return acc && ["comment", "space"].includes(i.type)
+	}, true)
+	return onlyCmts ? fmtCmt([,p[0][0]]) : {type: 'p', value: p[0]}
 }
 
 const fmtLine = ([data, other]) => {
@@ -70,25 +74,23 @@ const fmtLine = ([data, other]) => {
 	return [...data, ...space, ...line]
 }
 
+const fmtText = ([data, other]) => {
+	const hasSpaces = other?.[0]?.length || other?.[1]?.length
+	const space = hasSpaces ? [spaceElement] : []
+	const line = other?.[2] || []
+	return [...data, ...space, ...line]
+}
+
 const fmtInline = ([os,,,t]) => {
 	const modifiers = os.value.slice(1, -1).split('')
 	const uniq = [...new Set(modifiers)];
-	let value = t
+	let value = t || ''
 	uniq.reverse().forEach(modifier => {
 		value = [{type: inlineTypes[modifier], value}]
 	})
 	return value[0]
 }
 
-const fmtText = ([string, other]) => {
-	const space = other?.[0] || other?.[1] || other?.[2] ? [spaceElement] : []
-	const text = other?.[3] || []
-	return [...string, ...space, ...text]
-}
-
-const fmtString = ([w,s]) => {
-	return s?.length ? [w, ...s[0], ...s[1]] : [w]
-}
 
 const fmtWord = ([w]) => {
 	return { type: 'word', value: w.value }
@@ -100,10 +102,11 @@ const fmtBlocks = ([b,bs]) => {
 
 const fmtDoc = ([,b]) => {
 	return gen(b?.[0] || [])
+	//return b?.[0] || []
 }
 
-const fmtCmt = () => {
-	return { type: 'comment', value: null }
+const fmtCmt = ([,c]) => {
+	return { type: 'comment', value: c?.value || '' }
 }
 
 const fmtSpace = ([d]) => {
@@ -136,20 +139,21 @@ const lexer = moo.states({
 		h2: /^[^\S\r\n]*#{2}/,
     	h1: /^[^\S\r\n]*#/,
 		...spaceTokens,
-		OS: {match: /\[[sudice]{1,6}:/, push: 'inline'},
+		OI: {match: /\[[sudice]{1,6}:/, push: 'inline'},
 		OC: {match: "/*", push: 'comment'},
 		word: /(?:(?!\[[sudice]{1,6}:|\/\*)[^\s])+/,
 	},
 	inline: {
-		word: /[^\s\]]+/,
-		CS: {match: "]", pop: 1},
+		OC: {match: "/*", push: 'comment'},
+		word: /(?:(?!\[[sudice]{1,6}:|\/\*)[^\s\]])+/,
+		CI: {match: "]", pop: 1},
 		...spaceTokens,
 	},
 	comment: {
 		cmt: { match: /(?:(?!\*\/)[\S\s])+/, lineBreaks: true },
 		CC: {match: "*/", pop: 1},
 		...spaceTokens
-	},
+	}
 })
 
 %}
@@ -161,11 +165,10 @@ blocks -> block (ws0n lb (ws0n lb):+ ws0n blocks):?           {% fmtBlocks %}
 block  -> (mblock)                                            {% fmtBlock  %}
 mblock -> (hs|p)                                              {% fmtMBlock %}
 hs     -> (%h1|%h2|%h3|%h4|%h5|%h6) (ws0n (lb ws0n):? line):? {% fmtHs     %}
-p      -> line                                                {% fmtP      %}
+p      -> (line)                                              {% fmtP      %}
 line   -> (word|inline|cmt) (ws0n (lb ws0n):? line):?         {% fmtLine   %}
-inline -> %OS ws0n (lb ws0n):? text ws0n (lb ws0n):? %CS      {% fmtInline %}
-text   -> string (ws0n lb ws0n text):?                        {% fmtText   %} 
-string -> word (ws1n string):?                                {% fmtString %}
+inline -> %OI ws0n (lb ws0n):? text:? ws0n (lb ws0n):? %CI    {% fmtInline %}
+text   -> (word|cmt) (ws0n (lb ws0n):? line):?                {% fmtText   %}
 word   -> %word                                               {% fmtWord   %}
 cmt    -> %OC %cmt:? %CC                                      {% fmtCmt    %}
 
