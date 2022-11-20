@@ -130,11 +130,6 @@ const fmtCmt = ([,c]) => {
 	return { type: 'comment', value: c?.value || '' }
 }
 	
-const fmtInlineCmt = ([,c,lb]) => {
-	const last = lb?.[0].type === "EOL" ? lb?.[0].value : ''
-	return { type: 'comment', value: c?.value + last || '' }
-}
-
 const fmtSpace = ([d]) => {
 	return d.type || d.length ? [spaceElement] : []
 }
@@ -159,12 +154,10 @@ const lexer = moo.states({
 		...spaceTokens,
 		OI: {match: /\[[sudice]{1,6}:/, push: 'inline'},
 		OBC: {match: "/*", push: 'blockCmt'},
-		OIC: {match: "//", push: 'inlineCmt'},
 		word: /(?:(?!\[[sudice]{1,6}:|\/\*|\/\/)[^\s])+/,
 	},
 	inline: {
 		OBC: {match: "/*", push: 'blockCmt'},
-		OIC: {match: "//", push: 'inlineCmt'},
 		word: /(?:(?!\[[sudice]{1,6}:|\/\*|\/\/)[^\s\]])+/,
 		CI: {match: "]", pop: 1},
 		...spaceTokens,
@@ -173,34 +166,27 @@ const lexer = moo.states({
 		cmt: { match: /(?:(?!\*\/)[\S\s])+/, lineBreaks: true },
 		CBC: {match: "*/", pop: 1},
 		...spaceTokens,
-	},
-	inlineCmt: {
-		lb: {match: /[\n\r]/, lineBreaks: true, pop: 1},
-		EOL: {match: /[\S\s]$/, lineBreaks: true },
-		cmt: { match: /[^\n\r]+(?=[^\n\r]$)/ },
-	},
+	}
 })
 
 %}
 
 @lexer lexer
 
-doc       -> (ws|lb):* (sections (ws|lb):*):?                    {% fmtDoc       %}
-sections  -> section (ws0n lb (ws0n lb):+ ws0n sections):?       {% fmtSections  %}
-section   -> (block)                                             {% fmtSection   %}
-block     -> (hs|p)                                              {% fmtBlock     %}
-hs        -> (%h1|%h2|%h3|%h4|%h5|%h6) (ws0n (lb ws0n):? line):? {% fmtHs        %}
-p         -> (line)                                              {% fmtP         %}
-line      -> (word|inline|blockCmt) (ws0n (lb ws0n):? line):?    {% fmtLine      %}
-           | (inlineCmt)            (ws0n line):?                {% fmtLine      %}
-inline    -> %OI ws0n (lb ws0n):? text:? ws0n (lb ws0n):? %CI    {% fmtInline    %}
-text      -> (word|inlineCmt|blockCmt) (ws0n (lb ws0n):? text):? {% fmtText      %}
-word      -> %word                                               {% fmtWord      %}
-blockCmt  -> %OBC %cmt:? %CBC                                    {% fmtCmt       %}
-inlineCmt -> %OIC %cmt:? (lb|%EOL)                               {% fmtInlineCmt %}
+doc       -> (ws|lb):* (sections (ws|lb):*):?                    {% fmtDoc      %}
+sections  -> section (ws0n lb (ws0n lb):+ ws0n sections):?       {% fmtSections %}
+section   -> (block)                                             {% fmtSection  %}
+block     -> (hs|p)                                              {% fmtBlock    %}
+hs        -> (%h1|%h2|%h3|%h4|%h5|%h6) (ws0n (lb ws0n):? line):? {% fmtHs       %}
+p         -> (line)                                              {% fmtP        %}
+line      -> (word|inline|blockCmt) (ws0n (lb ws0n):? line):?    {% fmtLine     %}
+inline    -> %OI ws0n (lb ws0n):? text:? ws0n (lb ws0n):? %CI    {% fmtInline   %}
+text      -> (word|blockCmt) (ws0n (lb ws0n):? text):?           {% fmtText     %}
+word      -> %word                                               {% fmtWord     %}
+blockCmt  -> %OBC %cmt:? %CBC                                    {% fmtCmt      %}
 
-ws        -> %ws                                                 {% fmtSpace     %}
-ws0n      -> %ws:*                                               {% fmtSpace     %}
-ws1n      -> %ws:+                                               {% fmtSpace     %}
-lb        -> %lb                                                 {% fmtSpace     %}
-lb01      -> %lb:?                                               {% fmtSpace     %}
+ws        -> %ws                                                 {% fmtSpace    %}
+ws0n      -> %ws:*                                               {% fmtSpace    %}
+ws1n      -> %ws:+                                               {% fmtSpace    %}
+lb        -> %lb                                                 {% fmtSpace    %}
+lb01      -> %lb:?                                               {% fmtSpace    %}

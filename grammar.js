@@ -90,7 +90,6 @@ const fmtP = ([p]) => {
 	const onlyCmts = p[0].reduce((acc, i) => {
 		return acc && ["comment", "space", "spaceRemoved"].includes(i.type)
 	}, true)
-	//return { type: 'p', value: p[0] }
 	return onlyCmts ? fmtCmt([,p[0][0]]) : { type: 'p', value: p[0] }
 }
 
@@ -135,11 +134,6 @@ const fmtCmt = ([,c]) => {
 	return { type: 'comment', value: c?.value || '' }
 }
 	
-const fmtInlineCmt = ([,c,lb]) => {
-	const last = lb?.[0].type === "EOL" ? lb?.[0].value : ''
-	return { type: 'comment', value: c?.value + last || '' }
-}
-
 const fmtSpace = ([d]) => {
 	return d.type || d.length ? [spaceElement] : []
 }
@@ -164,12 +158,10 @@ const lexer = moo.states({
 		...spaceTokens,
 		OI: {match: /\[[sudice]{1,6}:/, push: 'inline'},
 		OBC: {match: "/*", push: 'blockCmt'},
-		OIC: {match: "//", push: 'inlineCmt'},
 		word: /(?:(?!\[[sudice]{1,6}:|\/\*|\/\/)[^\s])+/,
 	},
 	inline: {
 		OBC: {match: "/*", push: 'blockCmt'},
-		OIC: {match: "//", push: 'inlineCmt'},
 		word: /(?:(?!\[[sudice]{1,6}:|\/\*|\/\/)[^\s\]])+/,
 		CI: {match: "]", pop: 1},
 		...spaceTokens,
@@ -178,12 +170,7 @@ const lexer = moo.states({
 		cmt: { match: /(?:(?!\*\/)[\S\s])+/, lineBreaks: true },
 		CBC: {match: "*/", pop: 1},
 		...spaceTokens,
-	},
-	inlineCmt: {
-		lb: {match: /[\n\r]/, lineBreaks: true, pop: 1},
-		EOL: {match: /[\S\s]$/, lineBreaks: true },
-		cmt: { match: /[^\n\r]+(?=[^\n\r]$)/ },
-	},
+	}
 })
 
 var grammar = {
@@ -239,11 +226,6 @@ var grammar = {
     {"name": "line$ebnf$1", "symbols": ["line$ebnf$1$subexpression$1"], "postprocess": id},
     {"name": "line$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
     {"name": "line", "symbols": ["line$subexpression$1", "line$ebnf$1"], "postprocess": fmtLine},
-    {"name": "line$subexpression$2", "symbols": ["inlineCmt"]},
-    {"name": "line$ebnf$2$subexpression$1", "symbols": ["ws0n", "line"]},
-    {"name": "line$ebnf$2", "symbols": ["line$ebnf$2$subexpression$1"], "postprocess": id},
-    {"name": "line$ebnf$2", "symbols": [], "postprocess": function(d) {return null;}},
-    {"name": "line", "symbols": ["line$subexpression$2", "line$ebnf$2"], "postprocess": fmtLine},
     {"name": "inline$ebnf$1$subexpression$1", "symbols": ["lb", "ws0n"]},
     {"name": "inline$ebnf$1", "symbols": ["inline$ebnf$1$subexpression$1"], "postprocess": id},
     {"name": "inline$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
@@ -254,7 +236,6 @@ var grammar = {
     {"name": "inline$ebnf$3", "symbols": [], "postprocess": function(d) {return null;}},
     {"name": "inline", "symbols": [(lexer.has("OI") ? {type: "OI"} : OI), "ws0n", "inline$ebnf$1", "inline$ebnf$2", "ws0n", "inline$ebnf$3", (lexer.has("CI") ? {type: "CI"} : CI)], "postprocess": fmtInline},
     {"name": "text$subexpression$1", "symbols": ["word"]},
-    {"name": "text$subexpression$1", "symbols": ["inlineCmt"]},
     {"name": "text$subexpression$1", "symbols": ["blockCmt"]},
     {"name": "text$ebnf$1$subexpression$1$ebnf$1$subexpression$1", "symbols": ["lb", "ws0n"]},
     {"name": "text$ebnf$1$subexpression$1$ebnf$1", "symbols": ["text$ebnf$1$subexpression$1$ebnf$1$subexpression$1"], "postprocess": id},
@@ -267,11 +248,6 @@ var grammar = {
     {"name": "blockCmt$ebnf$1", "symbols": [(lexer.has("cmt") ? {type: "cmt"} : cmt)], "postprocess": id},
     {"name": "blockCmt$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
     {"name": "blockCmt", "symbols": [(lexer.has("OBC") ? {type: "OBC"} : OBC), "blockCmt$ebnf$1", (lexer.has("CBC") ? {type: "CBC"} : CBC)], "postprocess": fmtCmt},
-    {"name": "inlineCmt$ebnf$1", "symbols": [(lexer.has("cmt") ? {type: "cmt"} : cmt)], "postprocess": id},
-    {"name": "inlineCmt$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
-    {"name": "inlineCmt$subexpression$1", "symbols": ["lb"]},
-    {"name": "inlineCmt$subexpression$1", "symbols": [(lexer.has("EOL") ? {type: "EOL"} : EOL)]},
-    {"name": "inlineCmt", "symbols": [(lexer.has("OIC") ? {type: "OIC"} : OIC), "inlineCmt$ebnf$1", "inlineCmt$subexpression$1"], "postprocess": fmtInlineCmt},
     {"name": "ws", "symbols": [(lexer.has("ws") ? {type: "ws"} : ws)], "postprocess": fmtSpace},
     {"name": "ws0n$ebnf$1", "symbols": []},
     {"name": "ws0n$ebnf$1", "symbols": ["ws0n$ebnf$1", (lexer.has("ws") ? {type: "ws"} : ws)], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
