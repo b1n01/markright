@@ -4,7 +4,7 @@
 function id(x) { return x[0]; }
 
 
-const moo = require("moo");
+const moo = require("moo")
 
 //------
 // Types
@@ -19,7 +19,10 @@ const inlineTypes = {
 	c: 'code',
 }
 
-const spaceElement = { type: 'space', value: ' ' }
+const spaceElement = {
+	type: 'space',
+	value: ' ',
+}
 
 //-----------
 // Formatters
@@ -50,9 +53,9 @@ const gen = (ast) => {
 				result += value
 				break;
 			case 'comment':
+			case 'spaceRemoved':
 				break;
 			default:
-				console.log(JSON.stringify(node)) 
 	 			throw `${node.type} is not a valid type`
 				break;
 		}
@@ -60,22 +63,58 @@ const gen = (ast) => {
 	return result
 }
 
+const fmtDoc = ([,b]) => {
+	return gen(b?.[0] || [])
+	//return b?.[0] || []
+}
+
+const fmtSections = ([b,bs]) => {
+	return bs?.[4] ? [b, ...bs[4]] : [b] 
+}
+
+const fmtSection = ([d]) => {
+	return d[0]
+}
+
+const fmtBlock = ([d]) => {
+	return d[0]
+}
+
 const fmtHs = ([h,i]) => {
-	return {type: h[0].type, value: i?.[2] || ''}
+	return { type: h[0].type, value: i?.[2] || '' }
 }
 
 const fmtP = ([p]) => {
 	const onlyCmts = p[0].reduce((acc, i) => {
-		return acc && ["comment", "space"].includes(i.type)
+		return acc && ["comment", "space", "spaceRemoved"].includes(i.type)
 	}, true)
-	return onlyCmts ? fmtCmt([,p[0][0]]) : {type: 'p', value: p[0]}
+	return onlyCmts ? fmtCmt([,p[0][0]]) : { type: 'p', value: p[0] }
 }
 
 const fmtLine = ([data, other]) => {
+	const line = other?.at(-1) || []
+	const endsWithCmt = line.length === 2 && line[0].type === 'comment'
+	const startsWithCmt = data[0].type === 'comment'
 	const hasSpaces = other?.[0]?.length || other?.[1]?.length
-	const space = hasSpaces ? [spaceElement] : []
-	const line = other?.[2] || []
-	return [...data, ...space, ...line]
+	const space = hasSpaces && !endsWithCmt && !startsWithCmt ? [spaceElement] : []
+	const removedSpace = { type:'spaceRemoved', value: startsWithCmt && hasSpaces }
+	
+	const wasSpaceRemoved = line.at(-1)?.value
+	if(wasSpaceRemoved) {
+		line.splice(1, 0, spaceElement)
+	}
+
+	return [...data, ...space, ...line, removedSpace]
+}
+
+const fmtInline = ([os,,,t]) => {
+	const modifiers = os.value.slice(1, -1).split('')
+	const uniq = [...new Set(modifiers)]
+	let value = t || ''
+	uniq.reverse().forEach(modifier => {
+		value = [{type: inlineTypes[modifier], value}]
+	})
+	return value[0]
 }
 
 const fmtText = ([data, other]) => {
@@ -85,28 +124,8 @@ const fmtText = ([data, other]) => {
 	return [...data, ...space, ...line]
 }
 
-const fmtInline = ([os,,,t]) => {
-	const modifiers = os.value.slice(1, -1).split('')
-	const uniq = [...new Set(modifiers)];
-	let value = t || ''
-	uniq.reverse().forEach(modifier => {
-		value = [{type: inlineTypes[modifier], value}]
-	})
-	return value[0]
-}
-
-
 const fmtWord = ([w]) => {
 	return { type: 'word', value: w.value }
-}
-
-const fmtBlocks = ([b,bs]) => {
-	return bs?.[4] ? [b, ...bs[4]] : [b] 
-}
-
-const fmtDoc = ([,b]) => {
-	return gen(b?.[0] || [])
-	//return b?.[0] || []
 }
 
 const fmtCmt = ([,c]) => {
@@ -115,14 +134,6 @@ const fmtCmt = ([,c]) => {
 
 const fmtSpace = ([d]) => {
 	return d.type || d.length ? [spaceElement] : []
-}
-
-const fmtMBlock = ([d]) => {
-	return d[0]
-}
-
-const fmtBlock = ([d]) => {
-	return d[0]
 }
 
 //------
@@ -144,20 +155,26 @@ const lexer = moo.states({
     	h1: /^[^\S\r\n]*#/,
 		...spaceTokens,
 		OI: {match: /\[[sudice]{1,6}:/, push: 'inline'},
-		OC: {match: "/*", push: 'comment'},
-		word: /(?:(?!\[[sudice]{1,6}:|\/\*)[^\s])+/,
+		OBC: {match: "/*", push: 'blockCmt'},
+		OIC: {match: "//", push: 'inlineCmt'},
+		word: /(?:(?!\[[sudice]{1,6}:|\/\*|\/\/)[^\s])+/,
 	},
 	inline: {
-		OC: {match: "/*", push: 'comment'},
-		word: /(?:(?!\[[sudice]{1,6}:|\/\*)[^\s\]])+/,
+		OBC: {match: "/*", push: 'blockCmt'},
+		OIC: {match: "//", push: 'inlineCmt'},
+		word: /(?:(?!\[[sudice]{1,6}:|\/\*|\/\/)[^\s\]])+/,
 		CI: {match: "]", pop: 1},
 		...spaceTokens,
 	},
-	comment: {
+	blockCmt: {
 		cmt: { match: /(?:(?!\*\/)[\S\s])+/, lineBreaks: true },
-		CC: {match: "*/", pop: 1},
-		...spaceTokens
-	}
+		CBC: {match: "*/", pop: 1},
+		...spaceTokens,
+	},
+	inlineCmt: {
+		cmt: { match: /[^\n\r]+/ },
+		lb: {match: /[\n\r]/, lineBreaks: true, pop: 1},
+	},
 })
 
 var grammar = {
@@ -171,23 +188,23 @@ var grammar = {
     {"name": "doc$ebnf$2$subexpression$1$ebnf$1$subexpression$1", "symbols": ["ws"]},
     {"name": "doc$ebnf$2$subexpression$1$ebnf$1$subexpression$1", "symbols": ["lb"]},
     {"name": "doc$ebnf$2$subexpression$1$ebnf$1", "symbols": ["doc$ebnf$2$subexpression$1$ebnf$1", "doc$ebnf$2$subexpression$1$ebnf$1$subexpression$1"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
-    {"name": "doc$ebnf$2$subexpression$1", "symbols": ["blocks", "doc$ebnf$2$subexpression$1$ebnf$1"]},
+    {"name": "doc$ebnf$2$subexpression$1", "symbols": ["sections", "doc$ebnf$2$subexpression$1$ebnf$1"]},
     {"name": "doc$ebnf$2", "symbols": ["doc$ebnf$2$subexpression$1"], "postprocess": id},
     {"name": "doc$ebnf$2", "symbols": [], "postprocess": function(d) {return null;}},
     {"name": "doc", "symbols": ["doc$ebnf$1", "doc$ebnf$2"], "postprocess": fmtDoc},
-    {"name": "blocks$ebnf$1$subexpression$1$ebnf$1$subexpression$1", "symbols": ["ws0n", "lb"]},
-    {"name": "blocks$ebnf$1$subexpression$1$ebnf$1", "symbols": ["blocks$ebnf$1$subexpression$1$ebnf$1$subexpression$1"]},
-    {"name": "blocks$ebnf$1$subexpression$1$ebnf$1$subexpression$2", "symbols": ["ws0n", "lb"]},
-    {"name": "blocks$ebnf$1$subexpression$1$ebnf$1", "symbols": ["blocks$ebnf$1$subexpression$1$ebnf$1", "blocks$ebnf$1$subexpression$1$ebnf$1$subexpression$2"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
-    {"name": "blocks$ebnf$1$subexpression$1", "symbols": ["ws0n", "lb", "blocks$ebnf$1$subexpression$1$ebnf$1", "ws0n", "blocks"]},
-    {"name": "blocks$ebnf$1", "symbols": ["blocks$ebnf$1$subexpression$1"], "postprocess": id},
-    {"name": "blocks$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
-    {"name": "blocks", "symbols": ["block", "blocks$ebnf$1"], "postprocess": fmtBlocks},
-    {"name": "block$subexpression$1", "symbols": ["mblock"]},
+    {"name": "sections$ebnf$1$subexpression$1$ebnf$1$subexpression$1", "symbols": ["ws0n", "lb"]},
+    {"name": "sections$ebnf$1$subexpression$1$ebnf$1", "symbols": ["sections$ebnf$1$subexpression$1$ebnf$1$subexpression$1"]},
+    {"name": "sections$ebnf$1$subexpression$1$ebnf$1$subexpression$2", "symbols": ["ws0n", "lb"]},
+    {"name": "sections$ebnf$1$subexpression$1$ebnf$1", "symbols": ["sections$ebnf$1$subexpression$1$ebnf$1", "sections$ebnf$1$subexpression$1$ebnf$1$subexpression$2"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
+    {"name": "sections$ebnf$1$subexpression$1", "symbols": ["ws0n", "lb", "sections$ebnf$1$subexpression$1$ebnf$1", "ws0n", "sections"]},
+    {"name": "sections$ebnf$1", "symbols": ["sections$ebnf$1$subexpression$1"], "postprocess": id},
+    {"name": "sections$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
+    {"name": "sections", "symbols": ["section", "sections$ebnf$1"], "postprocess": fmtSections},
+    {"name": "section$subexpression$1", "symbols": ["block"]},
+    {"name": "section", "symbols": ["section$subexpression$1"], "postprocess": fmtSection},
+    {"name": "block$subexpression$1", "symbols": ["hs"]},
+    {"name": "block$subexpression$1", "symbols": ["p"]},
     {"name": "block", "symbols": ["block$subexpression$1"], "postprocess": fmtBlock},
-    {"name": "mblock$subexpression$1", "symbols": ["hs"]},
-    {"name": "mblock$subexpression$1", "symbols": ["p"]},
-    {"name": "mblock", "symbols": ["mblock$subexpression$1"], "postprocess": fmtMBlock},
     {"name": "hs$subexpression$1", "symbols": [(lexer.has("h1") ? {type: "h1"} : h1)]},
     {"name": "hs$subexpression$1", "symbols": [(lexer.has("h2") ? {type: "h2"} : h2)]},
     {"name": "hs$subexpression$1", "symbols": [(lexer.has("h3") ? {type: "h3"} : h3)]},
@@ -205,7 +222,7 @@ var grammar = {
     {"name": "p", "symbols": ["p$subexpression$1"], "postprocess": fmtP},
     {"name": "line$subexpression$1", "symbols": ["word"]},
     {"name": "line$subexpression$1", "symbols": ["inline"]},
-    {"name": "line$subexpression$1", "symbols": ["cmt"]},
+    {"name": "line$subexpression$1", "symbols": ["blockCmt"]},
     {"name": "line$ebnf$1$subexpression$1$ebnf$1$subexpression$1", "symbols": ["lb", "ws0n"]},
     {"name": "line$ebnf$1$subexpression$1$ebnf$1", "symbols": ["line$ebnf$1$subexpression$1$ebnf$1$subexpression$1"], "postprocess": id},
     {"name": "line$ebnf$1$subexpression$1$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
@@ -213,6 +230,11 @@ var grammar = {
     {"name": "line$ebnf$1", "symbols": ["line$ebnf$1$subexpression$1"], "postprocess": id},
     {"name": "line$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
     {"name": "line", "symbols": ["line$subexpression$1", "line$ebnf$1"], "postprocess": fmtLine},
+    {"name": "line$subexpression$2", "symbols": ["inlineCmt"]},
+    {"name": "line$ebnf$2$subexpression$1", "symbols": ["ws0n", "line"]},
+    {"name": "line$ebnf$2", "symbols": ["line$ebnf$2$subexpression$1"], "postprocess": id},
+    {"name": "line$ebnf$2", "symbols": [], "postprocess": function(d) {return null;}},
+    {"name": "line", "symbols": ["line$subexpression$2", "line$ebnf$2"], "postprocess": fmtLine},
     {"name": "inline$ebnf$1$subexpression$1", "symbols": ["lb", "ws0n"]},
     {"name": "inline$ebnf$1", "symbols": ["inline$ebnf$1$subexpression$1"], "postprocess": id},
     {"name": "inline$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
@@ -223,7 +245,7 @@ var grammar = {
     {"name": "inline$ebnf$3", "symbols": [], "postprocess": function(d) {return null;}},
     {"name": "inline", "symbols": [(lexer.has("OI") ? {type: "OI"} : OI), "ws0n", "inline$ebnf$1", "inline$ebnf$2", "ws0n", "inline$ebnf$3", (lexer.has("CI") ? {type: "CI"} : CI)], "postprocess": fmtInline},
     {"name": "text$subexpression$1", "symbols": ["word"]},
-    {"name": "text$subexpression$1", "symbols": ["cmt"]},
+    {"name": "text$subexpression$1", "symbols": ["inlineCmt"]},
     {"name": "text$ebnf$1$subexpression$1$ebnf$1$subexpression$1", "symbols": ["lb", "ws0n"]},
     {"name": "text$ebnf$1$subexpression$1$ebnf$1", "symbols": ["text$ebnf$1$subexpression$1$ebnf$1$subexpression$1"], "postprocess": id},
     {"name": "text$ebnf$1$subexpression$1$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
@@ -232,9 +254,14 @@ var grammar = {
     {"name": "text$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
     {"name": "text", "symbols": ["text$subexpression$1", "text$ebnf$1"], "postprocess": fmtText},
     {"name": "word", "symbols": [(lexer.has("word") ? {type: "word"} : word)], "postprocess": fmtWord},
-    {"name": "cmt$ebnf$1", "symbols": [(lexer.has("cmt") ? {type: "cmt"} : cmt)], "postprocess": id},
-    {"name": "cmt$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
-    {"name": "cmt", "symbols": [(lexer.has("OC") ? {type: "OC"} : OC), "cmt$ebnf$1", (lexer.has("CC") ? {type: "CC"} : CC)], "postprocess": fmtCmt},
+    {"name": "blockCmt$ebnf$1", "symbols": [(lexer.has("cmt") ? {type: "cmt"} : cmt)], "postprocess": id},
+    {"name": "blockCmt$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
+    {"name": "blockCmt", "symbols": [(lexer.has("OBC") ? {type: "OBC"} : OBC), "blockCmt$ebnf$1", (lexer.has("CBC") ? {type: "CBC"} : CBC)], "postprocess": fmtCmt},
+    {"name": "inlineCmt$ebnf$1", "symbols": [(lexer.has("cmt") ? {type: "cmt"} : cmt)], "postprocess": id},
+    {"name": "inlineCmt$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
+    {"name": "inlineCmt$ebnf$2", "symbols": ["lb"], "postprocess": id},
+    {"name": "inlineCmt$ebnf$2", "symbols": [], "postprocess": function(d) {return null;}},
+    {"name": "inlineCmt", "symbols": [(lexer.has("OIC") ? {type: "OIC"} : OIC), "inlineCmt$ebnf$1", "inlineCmt$ebnf$2"], "postprocess": fmtCmt},
     {"name": "ws", "symbols": [(lexer.has("ws") ? {type: "ws"} : ws)], "postprocess": fmtSpace},
     {"name": "ws0n$ebnf$1", "symbols": []},
     {"name": "ws0n$ebnf$1", "symbols": ["ws0n$ebnf$1", (lexer.has("ws") ? {type: "ws"} : ws)], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},

@@ -1,6 +1,6 @@
 @{%
 
-const moo = require("moo");
+const moo = require("moo")
 
 //------
 // Types
@@ -49,6 +49,7 @@ const gen = (ast) => {
 				result += value
 				break;
 			case 'comment':
+			case 'spaceRemoved':
 				break;
 			default:
 	 			throw `${node.type} is not a valid type`
@@ -58,23 +59,58 @@ const gen = (ast) => {
 	return result
 }
 
+const fmtDoc = ([,b]) => {
+	return gen(b?.[0] || [])
+	//return b?.[0] || []
+}
+
+const fmtSections = ([b,bs]) => {
+	return bs?.[4] ? [b, ...bs[4]] : [b] 
+}
+
+const fmtSection = ([d]) => {
+	return d[0]
+}
+
+const fmtBlock = ([d]) => {
+	return d[0]
+}
+
 const fmtHs = ([h,i]) => {
 	return { type: h[0].type, value: i?.[2] || '' }
 }
 
 const fmtP = ([p]) => {
 	const onlyCmts = p[0].reduce((acc, i) => {
-		return acc && ["comment", "space"].includes(i.type)
+		return acc && ["comment", "space", "spaceRemoved"].includes(i.type)
 	}, true)
 	return onlyCmts ? fmtCmt([,p[0][0]]) : { type: 'p', value: p[0] }
 }
 
 const fmtLine = ([data, other]) => {
 	const line = other?.at(-1) || []
+	const endsWithCmt = line.length === 2 && line[0].type === 'comment'
+	const startsWithCmt = data[0].type === 'comment'
 	const hasSpaces = other?.[0]?.length || other?.[1]?.length
-	const endsWithComment = line.length === 1 && line[0].type === 'comment'
-	const space = hasSpaces && !endsWithComment ? [spaceElement] : []
-	return [...data, ...space, ...line]
+	const space = hasSpaces && !endsWithCmt && !startsWithCmt ? [spaceElement] : []
+	const removedSpace = { type:'spaceRemoved', value: startsWithCmt && hasSpaces }
+	
+	const wasSpaceRemoved = line.at(-1)?.value
+	if(wasSpaceRemoved) {
+		line.splice(1, 0, spaceElement)
+	}
+
+	return [...data, ...space, ...line, removedSpace]
+}
+
+const fmtInline = ([os,,,t]) => {
+	const modifiers = os.value.slice(1, -1).split('')
+	const uniq = [...new Set(modifiers)]
+	let value = t || ''
+	uniq.reverse().forEach(modifier => {
+		value = [{type: inlineTypes[modifier], value}]
+	})
+	return value[0]
 }
 
 const fmtText = ([data, other]) => {
@@ -84,28 +120,8 @@ const fmtText = ([data, other]) => {
 	return [...data, ...space, ...line]
 }
 
-const fmtInline = ([os,,,t]) => {
-	const modifiers = os.value.slice(1, -1).split('')
-	const uniq = [...new Set(modifiers)];
-	let value = t || ''
-	uniq.reverse().forEach(modifier => {
-		value = [{type: inlineTypes[modifier], value}]
-	})
-	return value[0]
-}
-
-
 const fmtWord = ([w]) => {
 	return { type: 'word', value: w.value }
-}
-
-const fmtBlocks = ([b,bs]) => {
-	return bs?.[4] ? [b, ...bs[4]] : [b] 
-}
-
-const fmtDoc = ([,b]) => {
-	return gen(b?.[0] || [])
-	//return b?.[0] || []
 }
 
 const fmtCmt = ([,c]) => {
@@ -114,14 +130,6 @@ const fmtCmt = ([,c]) => {
 
 const fmtSpace = ([d]) => {
 	return d.type || d.length ? [spaceElement] : []
-}
-
-const fmtMBlock = ([d]) => {
-	return d[0]
-}
-
-const fmtBlock = ([d]) => {
-	return d[0]
 }
 
 //------
@@ -169,22 +177,22 @@ const lexer = moo.states({
 
 @lexer lexer
 
-doc       -> (ws|lb):* (blocks (ws|lb):*):?                      {% fmtDoc    %}
-blocks    -> block (ws0n lb (ws0n lb):+ ws0n blocks):?           {% fmtBlocks %}
-block     -> (mblock)                                            {% fmtBlock  %}
-mblock    -> (hs|p)                                              {% fmtMBlock %}
-hs        -> (%h1|%h2|%h3|%h4|%h5|%h6) (ws0n (lb ws0n):? line):? {% fmtHs     %}
-p         -> (line)                                              {% fmtP      %}
-line      -> (word|inline|blockCmt) (ws0n (lb ws0n):? line):?    {% fmtLine   %}
-           | (inlineCmt) (ws0n line):?                           {% fmtLine   %}
-inline    -> %OI ws0n (lb ws0n):? text:? ws0n (lb ws0n):? %CI    {% fmtInline %}
-text      -> (word|inlineCmt) (ws0n (lb ws0n):? line):?          {% fmtText   %}
-word      -> %word                                               {% fmtWord   %}
-blockCmt  -> %OBC %cmt:? %CBC                                    {% fmtCmt    %}
-inlineCmt -> %OIC %cmt:? lb:?                                    {% fmtCmt    %}
+doc       -> (ws|lb):* (sections (ws|lb):*):?                    {% fmtDoc      %}
+sections  -> section (ws0n lb (ws0n lb):+ ws0n sections):?       {% fmtSections %}
+section   -> (block)                                             {% fmtSection  %}
+block     -> (hs|p)                                              {% fmtBlock    %}
+hs        -> (%h1|%h2|%h3|%h4|%h5|%h6) (ws0n (lb ws0n):? line):? {% fmtHs       %}
+p         -> (line)                                              {% fmtP        %}
+line      -> (word|inline|blockCmt) (ws0n (lb ws0n):? line):?    {% fmtLine     %}
+           | (inlineCmt)            (ws0n line):?                {% fmtLine     %}
+inline    -> %OI ws0n (lb ws0n):? text:? ws0n (lb ws0n):? %CI    {% fmtInline   %}
+text      -> (word|inlineCmt) (ws0n (lb ws0n):? line):?          {% fmtText     %}
+word      -> %word                                               {% fmtWord     %}
+blockCmt  -> %OBC %cmt:? %CBC                                    {% fmtCmt      %}
+inlineCmt -> %OIC %cmt:? lb:?                                    {% fmtCmt      %}
 
-ws        -> %ws                                                 {% fmtSpace  %}
-ws0n      -> %ws:*                                               {% fmtSpace  %}
-ws1n      -> %ws:+                                               {% fmtSpace  %}
-lb        -> %lb                                                 {% fmtSpace  %}
-lb01      -> %lb:?                                               {% fmtSpace  %}
+ws        -> %ws                                                 {% fmtSpace    %}
+ws0n      -> %ws:*                                               {% fmtSpace    %}
+ws1n      -> %ws:+                                               {% fmtSpace    %}
+lb        -> %lb                                                 {% fmtSpace    %}
+lb01      -> %lb:?                                               {% fmtSpace    %}

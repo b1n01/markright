@@ -118,43 +118,43 @@ const commentTests = () => [
     description: `Multiple comment with spacing`,
   },
   {
-    markright: `foo/* bar */`,
+    markright: `foo/*bar*/`,
     html: `<p>foo</p>`,
     description: `Comment after a paragraph`,
   },
   {
-    markright: `foo /* bar */`,
-    html: `<p>foo </p>`,
+    markright: `foo   /*   bar   */   `,
+    html: `<p>foo</p>`,
     description: `Comment after a paragraph with spacing`,
   },
   {
-    markright: `/* bar */foo`,
-    html: `<p>foo</p>`,
+    markright: `/*foo*/bar`,
+    html: `<p>bar</p>`,
     description: `Comment before a paragraph`,
   },
   {
-    markright: `/* bar */ foo`,
-    html: `<p> foo</p>`,
+    markright: `   /*   foo   */   bar`,
+    html: `<p>bar</p>`,
     description: `Comment before a paragraph with spacing`,
   },
   {
-    markright: `#foo/* bar */`,
+    markright: `#foo/*bar*/`,
     html: `<h1>foo</h1>`,
     description: `Comment after an H1`,
   },
   {
-    markright: `#foo /* bar */`,
-    html: `<h1>foo </h1>`,
+    markright: `#foo   /*   bar   */   `,
+    html: `<h1>foo</h1>`,
     description: `Comment after an H1 with spacing`,
   },
   {
-    markright: `/* bar */#foo`,
-    html: `<p>#foo</p>`,
+    markright: `/*foo*/#bar`,
+    html: `<p>#bar</p>`,
     description: `Comment before an H1`,
   },
   {
-    markright: `/* bar */ #foo`,
-    html: `<p> #foo</p>`,
+    markright: `   /*   foo   */   #bar`,
+    html: `<p>#bar</p>`,
     description: `Comment before an H1 with spacing`,
   },
 ];
@@ -188,7 +188,7 @@ exec("node_modules/nearley/bin/nearleyc.js grammar.ne -o grammar.js", (err) => {
       const html = parser.results[0];
 
       if (html != test.html) {
-        console.log(`[${index + 1}/${tests.length}] ❌ ${test.description}`);
+        console.log(`❌ ${test.description}`);
         console.log(`   Expected: "${test.html}"\n   Found:    "${html}"`);
         failed++;
       } else {
@@ -197,9 +197,10 @@ exec("node_modules/nearley/bin/nearleyc.js grammar.ne -o grammar.js", (err) => {
       }
     });
 
-    console.log(
-      "\n" + (failed ? "🚨" : "🎉"),
-      `${passed}/${passed + failed} tests passed`
-    );
+    if(failed) {
+      console.log(`\n 🚨 ${failed} test${failed > 1? 's' : ''} out of ${passed + failed} failed`);
+    } else {
+      console.log(`\n 🎉${passed + failed > 1 ? 'All' : ''} ${passed + failed} test${passed + failed > 1 ? 's' : ''} passed`);
+    }
   }
 });
