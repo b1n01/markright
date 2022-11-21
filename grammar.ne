@@ -49,7 +49,6 @@ const gen = (ast) => {
 				result += value
 				break;
 			case 'comment':
-			case 'spaceRemoved':
 				break;
 			default:
 	 			throw `${node.type} is not a valid type`
@@ -84,25 +83,25 @@ const fmtHs = ([h,i]) => {
 const fmtP = ([p]) => {
 	const removedSpace = p[0].pop()
 	const onlyCmts = p[0].reduce((acc, i) => {
-		return acc && ["comment", "space", "spaceRemoved"].includes(i.type)
+		return acc && ["comment", "space"].includes(i.type)
 	}, true)
 	return onlyCmts ? fmtCmt([,p[0][0]]) : { type: 'p', value: p[0] }
 }
 
 const fmtLine = ([data, other]) => {
 	const line = other?.at(-1) || []
-	const lastSpaceRemoved = line.pop()
+	const wasSpaceRemoved = line.pop()
 	const endsWithCmt = line.length === 1 && line[0].type === 'comment'
 	const startsWithCmt = data[0].type === 'comment'
 	const hasSpaces = other?.[0]?.length || other?.[1]?.length
 	const space = hasSpaces && !endsWithCmt && !startsWithCmt ? [spaceElement] : []
-	const removedSpace = { type:'spaceRemoved', value: startsWithCmt && hasSpaces }
+	const isSpaceRemoved = { type:'spaceRemoved', value: startsWithCmt && hasSpaces }
 	
-	if(lastSpaceRemoved?.value) {
+	if(wasSpaceRemoved?.value) {
 		line.splice(1, 0, spaceElement)
 	}
 
-	return [...data, ...space, ...line, removedSpace]
+	return [...data, ...space, ...line, isSpaceRemoved]
 }
 
 const fmtInline = ([os,,,t]) => {
@@ -175,9 +174,8 @@ const lexer = moo.states({
 		...spaceTokens,
 	},
 	inlineCmt: {
+		cmt: { match: /[^\n\r]+/ },
 		lb: {match: /[\n\r]/, lineBreaks: true, pop: 1},
-		EOL: {match: /[\S\s]$/, lineBreaks: true },
-		cmt: { match: /[^\n\r]+(?=[^\n\r]$)/ },
 	},
 })
 
@@ -197,7 +195,7 @@ inline    -> %OI ws0n (lb ws0n):? text:? ws0n (lb ws0n):? %CI    {% fmtInline   
 text      -> (word|inlineCmt|blockCmt) (ws0n (lb ws0n):? text):? {% fmtText      %}
 word      -> %word                                               {% fmtWord      %}
 blockCmt  -> %OBC %cmt:? %CBC                                    {% fmtCmt       %}
-inlineCmt -> %OIC %cmt:? (lb|%EOL)                               {% fmtInlineCmt %}
+inlineCmt -> %OIC %cmt:? lb:?                                    {% fmtInlineCmt %}
 
 ws        -> %ws                                                 {% fmtSpace     %}
 ws0n      -> %ws:*                                               {% fmtSpace     %}

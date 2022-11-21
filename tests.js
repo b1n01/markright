@@ -159,6 +159,14 @@ const commentTests = () => [
   },
 ];
 
+const inlineCommentTests = () => [
+  {
+    markright: `//foo`,
+    html: ``,
+    description: `Inline comment`,
+  }, 
+];
+
 const tests = [
   ...blockTests("Paragraph", "", "p"),
   ...blockTests("H1", "#", "h1"),
@@ -174,6 +182,7 @@ const tests = [
   ...inlineTests("Insert", "[i:", "]", "ins"),
   ...inlineTests("Code", "[c:", "]", "code"),
   ...commentTests(),
+  ...inlineCommentTests(),
 ];
 
 exec("node_modules/nearley/bin/nearleyc.js grammar.ne -o grammar.js", (err) => {
@@ -185,14 +194,16 @@ exec("node_modules/nearley/bin/nearleyc.js grammar.ne -o grammar.js", (err) => {
     tests.forEach((test, index) => {
       const parser = new nearley.Parser(nearley.Grammar.fromCompiled(grammar));
       parser.feed(test.markright);
-      const html = parser.results[0];
+      const ok = parser.results.reduce((passed, html) => passed && html === test.html, true)
+      const ambiguousAlert = parser.results.length > 1 ? `[grammar is ambiguous, ${parser.results.length} results found]` : '';
 
-      if (html != test.html) {
-        console.log(`❌ ${test.description}`);
+      if (!ok) {
+        const html = parser.results[0]
+        console.log(`❌ ${test.description}`, ambiguousAlert);
         console.log(`   Expected: "${test.html}"\n   Found:    "${html}"`);
         failed++;
       } else {
-        console.log(`✅`, test.description);
+        console.log(`✅`, test.description, ambiguousAlert);
         passed++;
       }
     });
